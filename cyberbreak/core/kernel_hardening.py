@@ -1,0 +1,72 @@
+from typing import Dict, Any, Tuple
+from cyberbreak.core.executor import run_sync, log
+
+class KernelHardening:
+    """Linux Kernel sysctl hardening and AppArmor security matrix."""
+
+    HARDENED_SYSCTL = {
+        "kernel.yama.ptrace_scope": "3",
+        "kernel.unprivileged_bpf_disabled": "1",
+        "kernel.kptr_restrict": "2",
+        "kernel.dmesg_restrict": "1",
+        "fs.protected_fifos": "2",
+        "fs.protected_regular": "2",
+        "net.ipv4.tcp_syncookies": "1",
+        "net.ipv4.tcp_rfc1337": "1"
+    }
+
+    @staticmethod
+    def audit_sysctl() -> Dict[str, Dict[str, str]]:
+        """Audits current kernel sysctl values against security recommendations."""
+        results = {}
+        for key, target in KernelHardening.HARDENED_SYSCTL.items():
+            code, out, err = run_sync(f"sysctl -n {key}")
+            current = out.strip() if code == 0 else "N/A"
+            results[key] = {
+                "current": current,
+                "target": target,
+                "status": "SECURE" if current == target else "UNPROTECTED"
+            }
+        return results
+
+    @staticmethod
+    def apply_sysctl_hardening() -> Tuple[bool, str]:
+        """Applies hardened sysctl configuration directly to running kernel."""
+        log("Enforcing Kicksecure kernel sysctl parameters", "KERN")
+        success = 0
+        for key, val in KernelHardening.HARDENED_SYSCTL.items():
+            code, out, err = run_sync(f"sysctl -w {key}={val}")
+            if code == 0:
+                success += 1
+            else:
+                log(f"Failed to set {key}={val}: {err}", "WARN")
+
+        status_str = f"Hardened {success}/{len(KernelHardening.HARDENED_SYSCTL)} kernel parameters"
+        log(status_str, "OK")
+        return True, status_str
+
+    @staticmethod
+    def get_apparmor_status() -> Dict[str, Any]:
+        """Parses active AppArmor profiles from aa-status."""
+        code, out, err = run_sync("aa-status --json")
+        data = {"profiles": 0, "enforce": 0, "complain": 0, "raw": ""}
+        if code == 0 and out:
+            data["raw"] = out[:200]
+        else:
+            # Fallback to plain text aa-status
+            code2, out2, err2 = run_sync("aa-status")
+            if code2 == 0:
+                data["raw"] = out2[:300]
+            else:
+                data["raw"] = "AppArmor status unavailable or unconfined"
+        return data
+
+    @staticmethod
+    def enforce_all_apparmor() -> Tuple[bool, str]:
+        """Runs aa-enforce across all profiles in /etc/apparmor.d/."""
+        log("Enforcing all AppArmor profiles", "SEC")
+        code, out, err = run_sync("aa-enforce /etc/apparmor.d/*")
+        if code == 0:
+            log("AppArmor profiles set to Enforce mode", "OK")
+            return True, "All Profiles Enforced"
+        return False, err

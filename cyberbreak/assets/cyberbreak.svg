@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1c1c22"/>
+      <stop offset="100%" stop-color="#0e0e12"/>
+    </linearGradient>
+    <linearGradient id="neonMint" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#00ff66"/>
+      <stop offset="100%" stop-color="#00ddff"/>
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+  <rect width="512" height="512" rx="110" fill="#121214"/>
+  <!-- Outer Shield Contour -->
+  <path d="M 256 64 L 400 120 C 400 270 330 380 256 432 C 182 380 112 270 112 120 Z" 
+        fill="url(#shieldGrad)" stroke="#2a2a32" stroke-width="8"/>
+  <!-- Glowing Neon Border -->
+  <path d="M 256 90 L 376 136 C 376 260 318 355 256 400 C 194 355 136 260 136 136 Z" 
+        fill="none" stroke="url(#neonMint)" stroke-width="6" filter="url(#glow)"/>
+  <!-- Lightning Break Core -->
+  <path d="M 276 150 L 210 260 L 270 260 L 236 360 L 320 236 L 260 236 Z" 
+        fill="url(#neonMint)" filter="url(#glow)"/>
+  <!-- Status Indicator Dot -->
+  <circle cx="256" cy="448" r="8" fill="#00ff66" filter="url(#glow)"/>
+</svg>

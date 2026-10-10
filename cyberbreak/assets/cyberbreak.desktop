@@ -1,0 +1,12 @@
+[Desktop Entry]
+Name=CyberBreak
+GenericName=Security & Anti-Forensics Fortress
+Comment=Hardened Privacy, Leak Detection, Hardware Spoofing & Panic Isolation
+Exec=/usr/local/bin/cyberbreak
+Icon=cyberbreak
+Terminal=false
+Type=Application
+Categories=System;Security;Network;Settings;Qt;
+StartupNotify=true
+Keywords=security;privacy;spoofer;killswitch;tor;leak;firewall;kicksecure;
+X-Kicksecure-Security-Level=Hardened
