@@ -18,7 +18,7 @@ class DesktopPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("NATIVE DESKTOP & APP GRID INTEGRATION")
+        title = QLabel("NATIVE DESKTOP & APP GRID INTEGRATION // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Deploy CyberBreak into Linux application menus, desktop launchers, and system autostart")
         subtitle.setObjectName("HeaderSubtitle")

@@ -8,6 +8,8 @@ from cyberbreak.core.kernel_hardening import KernelHardening
 from cyberbreak.core.metadata_cleaner import MetadataCleaner
 from cyberbreak.core.firewall_controller import FirewallController
 from cyberbreak.core.usb_armory import USBArmory
+from cyberbreak.core.port_auditor import PortAuditor
+from cyberbreak.core.hardware_manager import HardwareManager
 
 class AuditWorker(QThread):
     finished_data = pyqtSignal(dict)
@@ -17,17 +19,21 @@ class AuditWorker(QThread):
         gw = NetworkAuditor.check_default_gateway()
         ipv6 = NetworkAuditor.check_ipv6_exposure()
         proton = NetworkAuditor.check_proton_vpn()
+        ports = PortAuditor.get_open_listening_ports()
+        usb_devs = HardwareManager.get_connected_usb_devices()
         self.finished_data.emit({
             "identity": identity,
             "gw": gw,
             "ipv6": ipv6,
-            "proton": proton
+            "proton": proton,
+            "ports": ports,
+            "usb": usb_devs
         })
 
 class DashboardPage(QWidget):
     """
     Workstation Security Posture Matrix & Threat Radar.
-    Engineered by lilami.
+    Engineered by lilami only.
     """
 
     def __init__(self, parent=None):
@@ -35,14 +41,14 @@ class DashboardPage(QWidget):
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(18)
+        layout.setSpacing(16)
 
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("SECURITY POSTURE MATRIX // By lilami")
+        title = QLabel("SECURITY POSTURE MATRIX // By lilami only")
         title.setObjectName("HeaderTitle")
-        subtitle = QLabel("Real-time kernel defenses, socket leak sensors, and hardware interlocks")
+        subtitle = QLabel("Real-time kernel defenses, socket leak sensors, listening port radars and hardware interlocks")
         subtitle.setObjectName("HeaderSubtitle")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
@@ -78,7 +84,7 @@ class DashboardPage(QWidget):
 
         layout.addWidget(self.alert_banner)
 
-        # Metric Cards Grid
+        # Metric Cards Grid (6 cards: 2x3)
         grid = QGridLayout()
         grid.setSpacing(14)
 
@@ -100,6 +106,15 @@ class DashboardPage(QWidget):
         )
         grid.addWidget(self.card_route, 0, 1)
 
+        self.card_ports = StatusCard(
+            "LISTENING NETWORK PORTS",
+            "Scanning...",
+            "Open TCP/UDP daemon sockets",
+            "PROBING",
+            "WARN"
+        )
+        grid.addWidget(self.card_ports, 0, 2)
+
         self.card_ipv6 = StatusCard(
             "IPV6 LEAK DEFENSE",
             "Checking...",
@@ -117,6 +132,15 @@ class DashboardPage(QWidget):
             "SECURE"
         )
         grid.addWidget(self.card_kernel, 1, 1)
+
+        self.card_usb = StatusCard(
+            "USB HARDWARE CONTROLLERS",
+            "Auditing...",
+            "Sysfs port authorization status",
+            "PROBING",
+            "SECURE"
+        )
+        grid.addWidget(self.card_usb, 1, 2)
 
         layout.addLayout(grid)
 
@@ -148,8 +172,13 @@ class DashboardPage(QWidget):
 
         fw_btn = QPushButton("🔒 STRICT FIREWALL")
         fw_btn.setObjectName("AccentButton")
-        fw_btn.clicked.connect(FirewallController.apply_strict_killswitch)
+        fw_btn.clicked.connect(FirewallController.apply_strict_profile)
         act_layout.addWidget(fw_btn)
+
+        port_lock_btn = QPushButton("🚨 LOCKDOWN PORTS")
+        port_lock_btn.setObjectName("PanicButton")
+        port_lock_btn.clicked.connect(PortAuditor.lockdown_all_open_ports)
+        act_layout.addWidget(port_lock_btn)
 
         act_layout.addStretch()
         layout.addWidget(actions_frame)
@@ -202,6 +231,18 @@ class DashboardPage(QWidget):
             self.card_route.subtitle_label.setText("Traffic leaving via raw unencrypted adapter")
             self.card_route.set_pill("LEAK DETECTED", "DANGER")
 
+        # Network Ports
+        ports = data.get("ports", [])
+        wan_ports = sum(1 for p in ports if p.get("is_wan"))
+        self.card_ports.set_value(f"{len(ports)} Sockets ({wan_ports} WAN)")
+        if wan_ports > 0:
+            self.card_ports.set_pill(f"{wan_ports} WAN EXPOSED", "DANGER")
+            self.card_ports.subtitle_label.setText("Rogue listeners bound to 0.0.0.0 or wildcard")
+        else:
+            self.card_ports.set_pill("SAFE", "SECURE")
+            self.card_ports.subtitle_label.setText("All listening sockets restricted to loopback")
+
+        # IPv6
         ipv6 = data.get("ipv6", {})
         if ipv6.get("has_global_ipv6", False):
             self.card_ipv6.set_value("GLOBAL IPV6 ACTIVE")
@@ -211,6 +252,13 @@ class DashboardPage(QWidget):
             self.card_ipv6.set_value("Disabled / Neutral")
             self.card_ipv6.subtitle_label.setText("IPv6 global routable addresses neutralized")
             self.card_ipv6.set_pill("SAFE", "SECURE")
+
+        # USB Devices
+        usb_devs = data.get("usb", [])
+        periph_count = sum(1 for d in usb_devs if not d.get("is_root_hub"))
+        self.card_usb.set_value(f"{periph_count} Peripherals")
+        self.card_usb.subtitle_label.setText(f"{len(usb_devs)} total controller interfaces")
+        self.card_usb.set_pill("MONITORED", "SECURE")
 
         # Dynamic Banner Feedback
         if not is_tun and not proton.get("is_connected") and not ident.get("is_tor"):
@@ -223,7 +271,7 @@ class DashboardPage(QWidget):
         else:
             self.alert_banner.setStyleSheet("background-color: #0b1f14; border: 2px solid #00ff66; border-radius: 8px;")
             self.b_icon.setText("🛡️")
-            self.b_title.setText("FORTRESS DEFENSES ARMED // BY LILAMI")
+            self.b_title.setText("FORTRESS DEFENSES ARMED // BY LILAMI ONLY")
             self.b_title.setStyleSheet("font-weight: 800; font-size: 14px; color: #00ff66;")
             self.b_sub.setText(f"Traffic cloaked via encrypted gateway ({iface}). Zero leak vectors exposed.")
             self.b_sub.setStyleSheet("font-size: 12px; color: #d0f5df;")

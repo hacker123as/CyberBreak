@@ -23,11 +23,11 @@ from cyberbreak.ui.pages.terminal_page import TerminalPage
 from cyberbreak.core.clipboard_guard import ClipboardGuard
 
 class MainWindow(QMainWindow):
-    """CyberBreak Main Application Window. Engineered by lilami."""
+    """CyberBreak Main Application Window. Engineered by lilami only."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("CyberBreak // By lilami - Defensive & Anti-Forensics Fortress")
+        self.setWindowTitle("CyberBreak // By lilami only - Defensive & Anti-Forensics Fortress")
         self.resize(1200, 780)
         self.setMinimumSize(1020, 660)
 
@@ -64,7 +64,7 @@ class MainWindow(QMainWindow):
         brand_title.setStyleSheet("font-size: 17px; font-weight: 800; color: #00ff66; letter-spacing: 1px;")
         b_layout.addWidget(brand_title)
 
-        brand_sub = QLabel("ENGINEERED BY LILAMI")
+        brand_sub = QLabel("ENGINEERED BY LILAMI ONLY")
         brand_sub.setStyleSheet("font-size: 10px; font-weight: 800; color: #00ff66; letter-spacing: 1.5px;")
         b_layout.addWidget(brand_sub)
 
@@ -81,7 +81,7 @@ class MainWindow(QMainWindow):
             "Hardware Spoofer",
             "Tor & Decoy Traffic",
             "Firewall & Profiles",
-            "BadUSB & Hardware",
+            "Hardware & Port Defense",
             "USB & Storage Armory",
             "Kernel Hardening",
             "Metadata & Shredder",
@@ -106,7 +106,7 @@ class MainWindow(QMainWindow):
         status_dot = QLabel("●")
         status_dot.setStyleSheet("color: #00ff66; font-size: 12px;")
         f_layout.addWidget(status_dot)
-        status_txt = QLabel("Fortress Active // By lilami")
+        status_txt = QLabel("Fortress Active // By lilami only")
         status_txt.setStyleSheet("color: #9da3ba; font-size: 11px; font-weight: 700;")
         f_layout.addWidget(status_txt)
         f_layout.addStretch()
@@ -140,9 +140,9 @@ class MainWindow(QMainWindow):
 
         root_layout.addWidget(self.stack)
 
-        # Select first tab by default
+        # Default select dashboard
         self.nav_list.setCurrentRow(0)
 
-    def on_nav_changed(self, row: int):
-        if 0 <= row < self.stack.count():
-            self.stack.setCurrentIndex(row)
+    def on_nav_changed(self, index: int):
+        if 0 <= index < self.stack.count():
+            self.stack.setCurrentIndex(index)

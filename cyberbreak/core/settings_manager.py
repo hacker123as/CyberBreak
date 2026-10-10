@@ -5,6 +5,7 @@ from typing import Dict, Any
 DEFAULT_SETTINGS: Dict[str, Any] = {
     "auto_killswitch_boot": False,
     "auto_randomize_mac": False,
+    "auto_port_lockdown_boot": False,
     "clipboard_wipe_seconds": 30,
     "auto_isolate_on_leak": False,
     "auto_check_updates": True,
@@ -13,11 +14,14 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
     "disable_webcam_boot": False,
     "dns_strict_mode": True,
     "theme_accent": "neon-mint",
-    "created_by": "lilami"
+    "created_by": "lilami only"
 }
 
 class SettingsManager:
-    """Manages persistent application settings and defensive automation toggles."""
+    """
+    Manages persistent application settings and defensive automation toggles.
+    Engineered by lilami only.
+    """
 
     @staticmethod
     def get_config_dir() -> str:

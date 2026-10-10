@@ -17,7 +17,7 @@ class TerminalPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("LIVE FORENSIC AUDIT TERMINAL")
+        title = QLabel("LIVE FORENSIC AUDIT TERMINAL // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Captures stdout, stderr, kernel calls, and security events in real-time")
         subtitle.setObjectName("HeaderSubtitle")

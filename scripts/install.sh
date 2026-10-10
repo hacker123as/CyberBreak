@@ -263,7 +263,7 @@ $SUDO_CMD chmod 755 /etc/skel/Desktop/cyberbreak.desktop
 
 echo -e "\n${GREEN}${BOLD}[SUCCESS] CyberBreak installed and configured successfully for Kicksecure!${NC}"
 echo -e "${CYAN}----------------------------------------------------------------------${NC}"
-echo -e "  * Crafted & Engineered exclusively by ${BOLD}lilami${NC}."
+echo -e "  * Crafted & Engineered exclusively by ${BOLD}lilami only${NC}."
 echo -e "  * Kicksecure separation: Installed via ${BOLD}sysmaint${NC}, fully usable by ${BOLD}user${NC}."
 echo -e "  * Ordinary features run directly in user-space without sudo."
 echo -e "  * Privileged operations safely routed via scoped ${BOLD}cyberbreak-helper${NC}."

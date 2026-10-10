@@ -40,7 +40,7 @@ class USBArmoryPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("USB & STORAGE ARMORY // By lilami")
+        title = QLabel("USB & STORAGE ARMORY // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("LUKS2 hardware vault encoder, Windows-unreadable stealth storage, ISO burner & OS backup")
         subtitle.setObjectName("HeaderSubtitle")

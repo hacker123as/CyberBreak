@@ -4,6 +4,7 @@ CyberBreak Narrowly Scoped Privileged Helper
 Target: Kicksecure Linux / Debian / Arch
 Security: Only accepts predefined, strictly validated actions.
 Never executes arbitrary shell input. Owned by root:root, mode 0755.
+Engineered by lilami only.
 """
 
 import sys
@@ -24,6 +25,14 @@ ALLOWED_ACTIONS = [
     "firewall-proton",
     "firewall-reset",
     "usb-lockdown",
+    "usb-unlock",
+    "usb-device-auth",
+    "usb-storage-block",
+    "port-block",
+    "port-kill",
+    "port-lockdown-all",
+    "iptables-rules-list",
+    "tor-read-cookie",
     "webcam-toggle",
     "sysctl-harden",
     "apparmor-status",
@@ -231,7 +240,6 @@ def action_firewall_proton(args: List[str]) -> int:
     return 0
 
 def action_firewall_reset(args: List[str]) -> int:
-    # If Kicksecure or Whonix native firewall exists, restart it cleanly
     code, _, _ = run_cmd(["systemctl", "is-active", "kicksecure-firewall"])
     if code == 0:
         run_cmd(["systemctl", "restart", "kicksecure-firewall"])
@@ -263,25 +271,238 @@ def action_firewall_reset(args: List[str]) -> int:
     return 0
 
 def action_usb_lockdown(args: List[str]) -> int:
-    enable = args[0] == "1" if args else True
-    val = "0" if enable else "1"
+    # 1. Block default authorization on all root controllers
     controllers = glob.glob("/sys/bus/usb/devices/usb*")
-    count = 0
     for ctrl in controllers:
         auth_file = os.path.join(ctrl, "authorized_default")
         if os.path.exists(auth_file):
             try:
                 with open(auth_file, "w") as f:
-                    f.write(val)
-                count += 1
+                    f.write("0")
             except Exception:
                 pass
-    if enable:
-        run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "block"])
-    else:
-        run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "apply-policy"])
-    print(f"OK: USB lockdown {'enabled' if enable else 'disabled'} ({count} controllers)")
+
+    # 2. De-authorize connected non-root USB devices (excluding root hubs)
+    devices = glob.glob("/sys/bus/usb/devices/[0-9]*")
+    deauth_count = 0
+    for dev in devices:
+        auth_file = os.path.join(dev, "authorized")
+        if os.path.exists(auth_file):
+            try:
+                with open(auth_file, "w") as f:
+                    f.write("0")
+                deauth_count += 1
+            except Exception:
+                pass
+
+    # 3. Block usb-storage & uas kernel drivers
+    try:
+        os.makedirs("/etc/modprobe.d", exist_ok=True)
+        with open("/etc/modprobe.d/cyberbreak-usb-lock.conf", "w") as f:
+            f.write("# CyberBreak USB Storage Lockdown\nblacklist usb_storage\nblacklist uas\ninstall usb-storage /bin/true\ninstall uas /bin/true\n")
+    except Exception:
+        pass
+    run_cmd(["modprobe", "-r", "uas", "usb-storage"])
+
+    # 4. USBGuard policy if present
+    run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "block"])
+
+    print(f"OK: Deep USB lockdown enabled ({len(controllers)} root controllers, {deauth_count} devices isolated)")
     return 0
+
+def action_usb_unlock(args: List[str]) -> int:
+    controllers = glob.glob("/sys/bus/usb/devices/usb*")
+    for ctrl in controllers:
+        auth_file = os.path.join(ctrl, "authorized_default")
+        if os.path.exists(auth_file):
+            try:
+                with open(auth_file, "w") as f:
+                    f.write("1")
+            except Exception:
+                pass
+
+    devices = glob.glob("/sys/bus/usb/devices/[0-9]*")
+    auth_count = 0
+    for dev in devices:
+        auth_file = os.path.join(dev, "authorized")
+        if os.path.exists(auth_file):
+            try:
+                with open(auth_file, "w") as f:
+                    f.write("1")
+                auth_count += 1
+            except Exception:
+                pass
+
+    if os.path.exists("/etc/modprobe.d/cyberbreak-usb-lock.conf"):
+        try:
+            os.remove("/etc/modprobe.d/cyberbreak-usb-lock.conf")
+        except Exception:
+            pass
+
+    run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "apply-policy"])
+    print(f"OK: USB ports and devices restored ({len(controllers)} controllers, {auth_count} devices authorized)")
+    return 0
+
+def action_usb_device_auth(args: List[str]) -> int:
+    if len(args) < 2:
+        print("ERROR: Device ID and auth state (1/0) required", file=sys.stderr)
+        return 2
+    dev_id, val = args[0], args[1]
+    if not re.match(r"^[a-zA-Z0-9_\-\.]+$", dev_id):
+        print(f"ERROR: Invalid device ID: '{dev_id}'", file=sys.stderr)
+        return 3
+    auth_path = f"/sys/bus/usb/devices/{dev_id}/authorized"
+    if not os.path.exists(auth_path):
+        print(f"ERROR: Device sysfs node does not exist: {auth_path}", file=sys.stderr)
+        return 4
+    try:
+        with open(auth_path, "w") as f:
+            f.write("1" if val == "1" else "0")
+        print(f"OK: USB device {dev_id} authorized={val}")
+        return 0
+    except Exception as e:
+        print(f"ERROR: Failed writing authorized node: {e}", file=sys.stderr)
+        return 5
+
+def action_usb_storage_block(args: List[str]) -> int:
+    block = args[0] == "1" if args else True
+    conf_path = "/etc/modprobe.d/cyberbreak-usb-lock.conf"
+    if block:
+        try:
+            os.makedirs("/etc/modprobe.d", exist_ok=True)
+            with open(conf_path, "w") as f:
+                f.write("blacklist usb_storage\nblacklist uas\ninstall usb-storage /bin/true\ninstall uas /bin/true\n")
+        except Exception as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 1
+        for dev in glob.glob("/sys/bus/usb/drivers/usb-storage/*"):
+            dev_name = os.path.basename(dev)
+            if re.match(r"^[0-9]+-[0-9\.]+$", dev_name):
+                try:
+                    with open("/sys/bus/usb/drivers/usb-storage/unbind", "w") as f:
+                        f.write(dev_name)
+                except Exception:
+                    pass
+        run_cmd(["modprobe", "-r", "uas", "usb-storage"])
+        print("OK: USB mass storage drivers blocked at kernel level")
+        return 0
+    else:
+        if os.path.exists(conf_path):
+            try:
+                os.remove(conf_path)
+            except Exception:
+                pass
+        run_cmd(["modprobe", "usb-storage"])
+        print("OK: USB mass storage drivers unblocked")
+        return 0
+
+def action_port_block(args: List[str]) -> int:
+    if len(args) < 2:
+        print("ERROR: Port and protocol required", file=sys.stderr)
+        return 2
+    port_str, proto = args[0], args[1].lower()
+    if not port_str.isdigit() or not (1 <= int(port_str) <= 65535):
+        print(f"ERROR: Invalid port '{port_str}'", file=sys.stderr)
+        return 3
+    if proto not in ("tcp", "udp"):
+        print(f"ERROR: Invalid protocol '{proto}'", file=sys.stderr)
+        return 4
+    port = port_str
+    run_cmd(["iptables", "-I", "INPUT", "1", "-p", proto, "--dport", port, "-j", "DROP"])
+    run_cmd(["ip6tables", "-I", "INPUT", "1", "-p", proto, "--dport", port, "-j", "DROP"])
+    print(f"OK: Inbound traffic to {proto.upper()}:{port} dropped by Netfilter")
+    return 0
+
+def action_port_kill(args: List[str]) -> int:
+    if len(args) < 1:
+        print("ERROR: PID required", file=sys.stderr)
+        return 2
+    pid_str = args[0]
+    if not pid_str.isdigit():
+        print("ERROR: PID must be integer", file=sys.stderr)
+        return 3
+    pid = int(pid_str)
+    if pid <= 100:
+        print(f"ERROR: Refusing to kill critical system PID {pid}", file=sys.stderr)
+        return 4
+    cmdline_path = f"/proc/{pid}/cmdline"
+    if os.path.exists(cmdline_path):
+        try:
+            with open(cmdline_path, "r") as f:
+                cmd = f.read()
+                if any(crit in cmd for crit in ("systemd", "init", "dbus", "polkit", "kworker")):
+                    print(f"ERROR: Refusing to kill protected daemon PID {pid}", file=sys.stderr)
+                    return 5
+        except Exception:
+            pass
+    code, _, err = run_cmd(["kill", "-9", str(pid)])
+    if code == 0:
+        print(f"OK: Terminated listening process PID {pid}")
+        return 0
+    print(f"ERROR: Failed to kill PID {pid}: {err}", file=sys.stderr)
+    return code
+
+def action_port_lockdown_all(args: List[str]) -> int:
+    code, out, _ = run_cmd(["ss", "-tulnp"])
+    blocked_count = 0
+    killed_count = 0
+
+    if code == 0 and out:
+        for line in out.strip().split("\n")[1:]:
+            parts = line.split()
+            if len(parts) >= 5:
+                proto = parts[0].lower()
+                local_raw = parts[4]
+                colon = local_raw.rfind(":")
+                if colon != -1:
+                    port_str = local_raw[colon+1:]
+                    if port_str.isdigit():
+                        port = int(port_str)
+                        run_cmd(["iptables", "-I", "INPUT", "1", "-p", proto, "--dport", str(port), "-j", "DROP"])
+                        blocked_count += 1
+
+                rest = " ".join(parts[5:]) if len(parts) > 5 else ""
+                proc_match = re.search(r'users:\(\("([^"]+)",pid=(\d+)', rest)
+                if proc_match:
+                    p_name = proc_match.group(1)
+                    p_pid = int(proc_match.group(2))
+                    if p_pid > 100 and p_name not in ("tor", "systemd-resolved"):
+                        run_cmd(["kill", "-9", str(p_pid)])
+                        killed_count += 1
+
+    # Block inbound NEW connections
+    run_cmd(["iptables", "-I", "INPUT", "1", "-m", "conntrack", "--ctstate", "NEW", "-m", "tcp", "-p", "tcp", "-j", "DROP"])
+    run_cmd(["iptables", "-I", "INPUT", "1", "-m", "conntrack", "--ctstate", "NEW", "-m", "udp", "-p", "udp", "-j", "DROP"])
+
+    print(f"OK: Full port lockdown applied ({blocked_count} ports dropped, {killed_count} daemons terminated)")
+    return 0
+
+def action_iptables_rules_list(args: List[str]) -> int:
+    code, out, err = run_cmd(["iptables", "-L", "-n", "-v", "--line-numbers"])
+    if code == 0:
+        print(out)
+        return 0
+    print(f"ERROR: {err or out}", file=sys.stderr)
+    return code
+
+def action_tor_read_cookie(args: List[str]) -> int:
+    paths = [
+        "/run/tor/control.authcookie",
+        "/var/run/tor/control.authcookie",
+        "/var/lib/tor/data/control_auth_cookie"
+    ] + glob.glob("/run/tor-instances/*/control.authcookie")
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "rb") as f:
+                    data = f.read()
+                    if len(data) == 32:
+                        print(data.hex())
+                        return 0
+            except Exception:
+                pass
+    print("ERROR: Tor cookie not found or unreadable", file=sys.stderr)
+    return 1
 
 def action_webcam_toggle(args: List[str]) -> int:
     disable = args[0] == "1" if args else True
@@ -651,6 +872,14 @@ def main():
         "firewall-proton": action_firewall_proton,
         "firewall-reset": action_firewall_reset,
         "usb-lockdown": action_usb_lockdown,
+        "usb-unlock": action_usb_unlock,
+        "usb-device-auth": action_usb_device_auth,
+        "usb-storage-block": action_usb_storage_block,
+        "port-block": action_port_block,
+        "port-kill": action_port_kill,
+        "port-lockdown-all": action_port_lockdown_all,
+        "iptables-rules-list": action_iptables_rules_list,
+        "tor-read-cookie": action_tor_read_cookie,
         "webcam-toggle": action_webcam_toggle,
         "sysctl-harden": action_sysctl_harden,
         "apparmor-status": action_apparmor_status,

@@ -1,6 +1,6 @@
 """
 CyberBreak Design System & Ultra-Modern QSS Stylesheet
-By lilami — Military-grade offensive/defensive aesthetics.
+By lilami only — Military-grade offensive/defensive aesthetics.
 High contrast, neon mint (#00ff66), cyber blue (#00b8ff), and alert crimson (#ff2a4b).
 """
 

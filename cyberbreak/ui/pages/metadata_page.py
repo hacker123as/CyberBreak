@@ -17,7 +17,7 @@ class MetadataPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("METADATA STRIPPER & SECURE FILE SHREDDER")
+        title = QLabel("METADATA STRIPPER & SECURE FILE SHREDDER // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Sanitize document EXIF/metadata via mat2, destroy files with multi-pass overwrites")
         subtitle.setObjectName("HeaderSubtitle")

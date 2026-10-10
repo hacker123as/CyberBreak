@@ -150,24 +150,28 @@ CyberBreak features native integration with **Proton VPN**:
 - **Machine-ID Auto-Reseeder**: Overwrites `/etc/machine-id` and `/var/lib/dbus/machine-id` with random entropy from `/dev/urandom`.
 - **UTC Timezone Cloaker**: Locks system timezone to UTC (`timedatectl set-timezone UTC`) to neutralize browser JavaScript clock fingerprinting.
 
-### 3. Tor Controller & Decoy Cover Traffic
-- **Tor Control Port Interlink (9051)**: Connects to Tor's authenticated control port, inspecting circuits (Guard -> Middle -> Exit).
-- **1-Click Identity Renewal**: Dispatches `SIGNAL NEWNYM` to force immediate Tor circuit reconstruction.
+### 3. Tor Controller & Real Circuit Radar
+- **Cookie-Authenticated Control Port Interlink**: Connects to Tor's authenticated IPC socket (`/run/tor/control` or `127.0.0.1:9051`) with automated cookie extraction (`/run/tor/control.authcookie`).
+- **Live Circuit Topology Matrix**: Real-time extraction of active circuits via `GETINFO circuit-status`. Parses individual hops (Guard Node -> Middle Relay -> Exit Node) with relay fingerprints and nicknames.
+- **1-Click Identity Renewal**: Dispatches `SIGNAL NEWNYM` to force immediate Tor circuit reconstruction and clean exit nodes.
 - **Kicksecure Stream Isolation**: Configures distinct SOCKS5 authentication credentials per application so applications never share Tor circuits.
-- **Synthetic Cover Traffic Generator**: Emits background dummy HTTPS requests to high-traffic domains with randomized packet intervals and sizes to disrupt ISP packet-timing correlation analysis.
+- **Synthetic Cover Traffic Generator**: Emits background dummy HTTPS requests to high-traffic domains with randomized packet intervals and sizes to disrupt ISP packet-timing correlation analysis, with live burst latency log.
 
-### 4. Hardened Firewall & Killswitch Profiles
+### 4. Hardened Firewall & Live Netfilter Rules Inspector
 - **Strict Workstation Shield**: Drops all unrequested incoming packets while permitting stateful outbound traffic; drops all IPv6.
 - **Dedicated Proton VPN Killswitch**: Drops all traffic on physical interfaces, strictly allowing traffic over `proton+`, `pvpn+`, `wg+`, `tun+` and WireGuard UDP `51820`.
 - **Universal VPN/WireGuard Killswitch**: Enforces strict tunnel-only routing across any VPN configuration.
-- **Tor-Only TransPort Profile**: Blocks all system traffic not destined for local Tor TransPort (9040/9050).
+- **Live Netfilter / iptables Rules Inspector**: Real-time table parsing `iptables -L -n -v` displaying Chain, Rule Number, Target, Protocol, Source, Destination, Packet Counters, and Byte Counts to verify active kernel enforcement.
 - **DNS Hijack Redirector**: Intercepts unencrypted port 53 UDP/TCP traffic and routes it to local encrypted stubs.
 
-### 5. BadUSB & Hardware Device Interlocks
-- **BadUSB / Rubber Ducky Defense**: Writes `0` to sysfs `authorized_default` across USB controllers, preventing newly connected USB devices from initializing HID keyboard/mouse inputs.
-- **USBGuard Whitelist Manager**: Integrates with the `usbguard` daemon to authorize trusted devices (e.g. YubiKeys).
-- **Webcam Hardware Driver Kill**: Unloads `uvcvideo` kernel driver, rendering `/dev/video*` devices completely inaccessible.
-- **Microphone Hardware Mute**: Zeroes hardware input capture gain in ALSA, PulseAudio, and PipeWire.
+### 5. Hardware Defense & Deep Port Lockdown Center
+- **Deep USB Port Lockdown**: Writes `0` to sysfs `authorized_default` across USB root controllers AND writes `0` to `/sys/bus/usb/devices/*/authorized` to logically disconnect existing non-input peripherals.
+- **Live Connected USB Device Tree**: Scans `/sys/bus/usb/devices/*` displaying Bus, DevNum, Vendor:Product ID, Device Name, Device Type (Storage, HID, Video, Network), Speed, and Live Authorization Status.
+- **Per-Device Authorization Toggles**: 1-click "BLOCK" / "AUTHORIZE" buttons for each physical USB port.
+- **Kernel Storage Driver Lock**: Automatically unbinds active `usb-storage` and `uas` drivers from sysfs and installs `/etc/modprobe.d/cyberbreak-usb-lock.conf` to physically prevent mass storage execution.
+- **Network Open Listening Ports Lockdown**: Scans active TCP and UDP listening sockets (`ss -tulnp` / `/proc/net/tcp`), displays bound Local IP, Port, PID, Process Name, and Exposure Risk (identifying rogue listeners bound to `0.0.0.0` or wildcard).
+- **1-Click Open Port Dropper & Process Killer**: Injects instant Netfilter `INPUT -p <proto> --dport <port> -j DROP` rules and terminates rogue listening daemons (`kill -9 <pid>`).
+- **Hardware Sensor Killswitches**: Unloads `uvcvideo` kernel driver to kill webcams, mutes ALSA/PulseAudio/PipeWire audio capture, and engages `rfkill block bluetooth` for wireless transmitters.
 
 ### 6. USB & Storage Armory (Swiss Army Knife by lilami)
 - **LUKS2 Hardware Vault Encoder**: Formats USB drives with military AES-XTS-512 LUKS2 encryption.
@@ -435,6 +439,7 @@ CyberBreak/
 │   │   ├── tor_controller.py       # Tor stem control port & decoy cover traffic
 │   │   ├── firewall_controller.py  # Iptables/nftables & Proton killswitch rules
 │   │   ├── hardware_manager.py     # USBGuard sysfs & webcam/mic modprobe
+│   │   ├── port_auditor.py         # Real-time listening port auditor & Netfilter socket lockdown
 │   │   ├── kernel_hardening.py     # Sysctl parameters & aa-status parser
 │   │   ├── metadata_cleaner.py     # mat2 wrapper & secure shredding
 │   │   ├── clipboard_guard.py      # Auto-cleaning clipboard timer

@@ -18,7 +18,7 @@ class SpooferPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("HARDWARE & IDENTITY SPOOFER // By lilami")
+        title = QLabel("HARDWARE & IDENTITY SPOOFER // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Randomize physical network MACs, OEM hostnames, machine-id, and UTC timezone")
         subtitle.setObjectName("HeaderSubtitle")

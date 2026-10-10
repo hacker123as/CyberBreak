@@ -39,7 +39,7 @@ class LeakPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("COMPREHENSIVE LEAK & ROUTING AUDITOR // By lilami")
+        title = QLabel("COMPREHENSIVE LEAK & ROUTING AUDITOR // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Deep socket inspection, ISP fingerprinting, physical city/state detection & route analysis")
         subtitle.setObjectName("HeaderSubtitle")

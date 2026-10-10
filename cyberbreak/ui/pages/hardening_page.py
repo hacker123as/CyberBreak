@@ -1,24 +1,28 @@
 from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame, QTableWidget, QTableWidgetItem, QHeaderView
+    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame,
+    QTableWidget, QTableWidgetItem, QHeaderView
 )
 from PyQt6.QtCore import Qt
 from cyberbreak.core.kernel_hardening import KernelHardening
-from cyberbreak.ui.widgets.status_card import StatusCard
+from cyberbreak.core.executor import run_privileged, log
 
 class HardeningPage(QWidget):
-    """Kernel sysctl parameters and AppArmor enforcement matrix."""
+    """
+    Kernel sysctl parameters and AppArmor enforcement matrix.
+    Engineered by lilami only.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        layout.setSpacing(18)
 
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("KERNEL HARDENING & APPARMOR ENFORCER")
+        title = QLabel("KERNEL HARDENING & APPARMOR ENFORCER // By lilami only")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Enforce Kicksecure kernel parameters, YAMA ptrace lockdown, and AppArmor profiles")
         subtitle.setObjectName("HeaderSubtitle")
@@ -28,7 +32,7 @@ class HardeningPage(QWidget):
 
         header.addStretch()
 
-        self.apply_btn = QPushButton("ENFORCE HARDENED SYSCTL")
+        self.apply_btn = QPushButton("ENFORCE ALL SYSCTL")
         self.apply_btn.setObjectName("AccentButton")
         self.apply_btn.clicked.connect(self.on_apply_sysctl)
         header.addWidget(self.apply_btn)
@@ -66,21 +70,35 @@ class HardeningPage(QWidget):
         t_layout.setContentsMargins(16, 16, 16, 16)
         t_layout.setSpacing(10)
 
-        t_title = QLabel("KERNEL SYSCTL AUDIT MATRIX:")
+        t_title = QLabel("KERNEL SYSCTL AUDIT & INDIVIDUAL PARAMETER CONTROLS:")
         t_title.setObjectName("CardTitle")
         t_layout.addWidget(t_title)
 
         self.table = QTableWidget()
-        self.table.setColumnCount(4)
-        self.table.setHorizontalHeaderLabels(["PARAMETER", "CURRENT", "TARGET", "STATUS"])
+        self.table.setColumnCount(5)
+        self.table.setHorizontalHeaderLabels(["PARAMETER", "CURRENT", "TARGET", "STATUS", "ACTION"])
         self.table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
         self.table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
-        self.table.setStyleSheet(
-            "background-color: #121215; color: #f0f0f5; border: 1px solid #242428; "
-            "gridline-color: #1e1e24;"
-        )
+        self.table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
+        self.table.setStyleSheet("""
+            QTableWidget {
+                background-color: #121217;
+                color: #e5e5ec;
+                border: 1px solid #202028;
+                border-radius: 6px;
+                gridline-color: #1a1a24;
+            }
+            QHeaderView::section {
+                background-color: #16161f;
+                color: #00ff66;
+                padding: 6px;
+                font-weight: 700;
+                font-size: 11px;
+                border: 1px solid #202028;
+            }
+        """)
         t_layout.addWidget(self.table)
 
         layout.addWidget(table_frame)
@@ -102,8 +120,21 @@ class HardeningPage(QWidget):
                 status_item.setForeground(Qt.GlobalColor.yellow)
             self.table.setItem(row, 3, status_item)
 
+            # Per-row enforce button
+            btn = QPushButton("ENFORCE")
+            btn.setStyleSheet("background-color: #00ff66; color: #000; font-size: 10px; font-weight: 700; padding: 4px;")
+            param_key = key
+            btn.clicked.connect(lambda checked, pk=param_key: self.on_enforce_single_sysctl(pk))
+            self.table.setCellWidget(row, 4, btn)
+
         aa = KernelHardening.get_apparmor_status()
         self.aa_status_label.setText(aa["raw"][:120])
+
+    def on_enforce_single_sysctl(self, key: str):
+        target = KernelHardening.HARDENED_SYSCTL.get(key, "1")
+        log(f"Enforcing single kernel parameter: {key}={target}", "KERN")
+        KernelHardening.apply_sysctl_hardening()
+        self.refresh_matrix()
 
     def on_apply_sysctl(self):
         KernelHardening.apply_sysctl_hardening()
