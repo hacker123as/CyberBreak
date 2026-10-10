@@ -25,7 +25,7 @@ class AuditWorker(QThread):
             ("identity", "Resolving your public identity", NetworkAuditor.get_external_identity, True),
             ("gw", "Reading the default route", NetworkAuditor.check_default_gateway, os.path.exists("/proc/net/route")),
             ("ipv6", "Checking IPv6 addresses", NetworkAuditor.check_ipv6_exposure, sys.platform.startswith("linux")),
-            ("proton", "Checking VPN indicators", NetworkAuditor.check_proton_vpn, True),
+            ("proton", "Checking VPN indicators", lambda: NetworkAuditor.check_proton_vpn(data.get("identity", {}), data.get("gw", {})), True),
             ("ports", "Inspecting listening sockets", PortAuditor.get_open_listening_ports, sys.platform.startswith("linux")),
             ("usb", "Reading connected hardware", HardwareManager.get_connected_usb_devices, os.path.isdir("/sys/bus/usb/devices")),
             ("kernel", "Comparing kernel settings", KernelHardening.audit_sysctl, sys.platform.startswith("linux")),
@@ -408,35 +408,29 @@ class DashboardPage(QWidget):
         city = ident.get("city", "")
         country = ident.get("country", "")
         location = ", ".join(str(value) for value in (city, country) if self.known(value))
-        tunnel = bool(gw.get("is_tunnel") or proton.get("is_connected"))
-        vpn = bool(proton.get("is_connected") or ident.get("is_proton") or ident.get("is_mullvad"))
+        tunnel = bool(gw.get("is_tunnel") and gw.get("route_verified"))
         available = 0
         review = 0
 
-        if "identity" in errors or not self.known(ip):
+        if "identity" in errors or ident.get("available") is False or not self.known(ip):
             self.unavailable(self.card_ip, errors.get("identity", "The public IP endpoint could not be reached."))
         else:
             available += 1
             self.card_ip.set_value(str(ip))
             self.card_ip.subtitle_label.setText(" · ".join(str(value) for value in (isp, location) if self.known(value)) or "Location details unavailable")
-            if vpn:
-                self.card_ip.set_pill("VPN indicator", "SECURE")
-            elif ident.get("is_tor"):
-                self.card_ip.set_pill("Exit indicator", "WARN")
-            else:
-                self.card_ip.set_pill("Public IP visible", "WARN")
+            self.card_ip.set_pill("Exit IP visible", "WARN")
 
         iface = gw.get("interface", "Unknown")
         if not self.known(iface):
             iface = proton.get("interface", "Unknown")
-        if "gw" in errors or not self.known(iface):
+        if "gw" in errors or gw.get("available") is False or not self.known(iface):
             self.unavailable(self.card_route, errors.get("gw", "No default route was available to inspect."))
         else:
             available += 1
             self.card_route.set_value(str(iface))
             gateway = gw.get("gateway_ip", "Unknown")
             self.card_route.subtitle_label.setText(f"Gateway {gateway}" if self.known(gateway) else "Gateway address unavailable")
-            self.card_route.set_pill("Tunnel detected" if tunnel else "Direct route", "SECURE" if tunnel else "WARN")
+            self.card_route.set_pill("Tunnel route verified" if tunnel else "Route unverified", "SECURE" if tunnel else "WARN")
             if not tunnel:
                 review += 1
 
@@ -452,15 +446,16 @@ class DashboardPage(QWidget):
             review += bool(wildcard)
 
         ipv6 = data.get("ipv6", {})
-        if "ipv6" in errors or "ipv6" not in data:
+        if "ipv6" in errors or "ipv6" not in data or ipv6.get("available") is False:
             self.unavailable(self.card_ipv6, errors.get("ipv6", "IPv6 address data was not returned by the probe."))
         else:
             available += 1
             global_ipv6 = bool(ipv6.get("has_global_ipv6"))
             self.card_ipv6.set_value("Global address" if global_ipv6 else "No global address")
-            self.card_ipv6.subtitle_label.setText("Check that IPv6 follows your intended route" if global_ipv6 else "No global IPv6 address found by this probe")
-            self.card_ipv6.set_pill("Review routing" if global_ipv6 else "Checked", "WARN" if global_ipv6 else "SECURE")
-            review += global_ipv6
+            ipv6_tunnel = bool(ipv6.get("route_verified") and ipv6.get("status") == "tunnel_routed")
+            self.card_ipv6.subtitle_label.setText("The sampled IPv6 route uses an active tunnel" if ipv6_tunnel else "Check that IPv6 follows your intended route" if global_ipv6 else "No global IPv6 address found by this probe")
+            self.card_ipv6.set_pill("Tunnel route verified" if ipv6_tunnel else "Review routing" if global_ipv6 else "Checked", "WARN" if global_ipv6 and not ipv6_tunnel else "SECURE")
+            review += global_ipv6 and not ipv6_tunnel
 
         kernel = data.get("kernel", {})
         checked = [value for value in kernel.values() if self.known(value.get("current"))]

@@ -12,6 +12,7 @@ from cyberbreak.ui.styles import MAIN_STYLESHEET
 from cyberbreak.ui.widgets.glass import AppCanvas, icon
 from cyberbreak.ui.pages.dashboard_page import DashboardPage
 from cyberbreak.ui.pages.leak_page import LeakPage
+from cyberbreak.ui.pages.browser_privacy_page import BrowserPrivacyPage
 from cyberbreak.ui.pages.spoofer_page import SpooferPage
 from cyberbreak.ui.pages.tor_cover_page import TorCoverPage
 from cyberbreak.ui.pages.firewall_page import FirewallPage
@@ -28,6 +29,7 @@ from cyberbreak.ui.pages.terminal_page import TerminalPage
 TOOLS = (
     ("Overview", "Your network, kernel and hardware at a glance", "grid", DashboardPage),
     ("Network privacy", "Public identity, DNS, IPv6 and routing", "globe", LeakPage),
+    ("Browser privacy", "Private browser, fingerprint blocking and runtime checks", "shield", BrowserPrivacyPage),
     ("Device identity", "Network adapters and system identifiers", "layers", SpooferPage),
     ("Tor & traffic", "Circuit inspection and background traffic", "route", TorCoverPage),
     ("Firewall", "Connection profiles and active rules", "shield", FirewallPage),
@@ -73,7 +75,7 @@ class NavigationDelegate(QStyledItemDelegate):
             painter.setPen(Qt.PenStyle.NoPen)
             painter.drawRoundedRect(area, 10, 10)
         row = index.row()
-        color = "#becfff" if selected else "#c691a7" if row == 10 else "#8596b9"
+        color = "#becfff" if selected else "#c691a7" if row == 11 else "#8596b9"
         icon(TOOLS[row][2], color, 18).paint(painter, int(area.x() + 12), int(area.center().y() - 9), 18, 18)
         font.setPixelSize(12)
         font.setWeight(QFont.Weight.DemiBold if selected else QFont.Weight.Normal)
@@ -255,7 +257,7 @@ class MainWindow(QMainWindow):
         self.search_button.clicked.connect(self.palette.show)
         self.search_shortcut = QShortcut(QKeySequence("Ctrl+K"), self)
         self.search_shortcut.activated.connect(self.palette.show)
-        self.mount_page(12)
+        self.mount_page(len(TOOLS) - 1)
         self.nav_list.currentRowChanged.connect(self.on_nav_changed)
         self.nav_list.setCurrentRow(0)
         geometry = self.preferences.value("geometry")
@@ -295,7 +297,7 @@ class MainWindow(QMainWindow):
         self.nav_list.setItemDelegate(NavigationDelegate(self.nav_list))
         self.nav_list.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
         self.nav_list.setSpacing(2)
-        groups = {0: "AT A GLANCE", 1: "PROTECTION", 9: "WORKSPACE"}
+        groups = {0: "AT A GLANCE", 1: "PROTECTION", 10: "WORKSPACE"}
         for index, (title, description, _, _) in enumerate(TOOLS):
             item = QListWidgetItem(title)
             item.setData(Qt.ItemDataRole.UserRole, index)
@@ -332,7 +334,7 @@ class MainWindow(QMainWindow):
         self.search_button.setIcon(icon("search", "#95a4c2", 16))
         self.search_button.setFixedWidth(220)
         self.search_button.setCursor(Qt.CursorShape.PointingHandCursor)
-        self.search_button.setToolTip("Search all 13 tools (Ctrl+K)")
+        self.search_button.setToolTip(f"Search all {len(TOOLS)} tools (Ctrl+K)")
         layout.addWidget(self.search_button)
         self.motion_button = QToolButton()
         self.motion_button.setObjectName("MotionButton")
@@ -349,7 +351,10 @@ class MainWindow(QMainWindow):
     def on_nav_changed(self, index):
         if self._closing or not 0 <= index < len(TOOLS):
             return
-        previous = self.stack.currentWidget().grab() if self._current_page >= 0 and not self.property("reducedMotion") and self.isVisible() else None
+        browser_transition = TOOLS[index][3] is BrowserPrivacyPage or (
+            self._current_page >= 0 and isinstance(self.pages[self._current_page], BrowserPrivacyPage)
+        )
+        previous = self.stack.currentWidget().grab() if self._current_page >= 0 and not browser_transition and not self.property("reducedMotion") and self.isVisible() else None
         self.mount_page(index)
         self.stack.setCurrentIndex(index)
         self._current_page = index
@@ -375,7 +380,7 @@ class MainWindow(QMainWindow):
         if index == 0:
             page.audit_started.connect(lambda: self.activity_label.setText("Audit in progress · Reading live system signals"))
             page.audit_completed.connect(self.activity_label.setText)
-        elif index == 9:
+        elif isinstance(page, SettingsPage):
             page.settings_saved.connect(self.apply_preferences)
         for button in page.findChildren(QPushButton):
             button.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -412,6 +417,9 @@ class MainWindow(QMainWindow):
         for page in self.pages:
             if page is None:
                 continue
+            shutdown = getattr(page, "shutdown", None)
+            if shutdown is not None:
+                shutdown()
             for timer in page.findChildren(QTimer):
                 timer.stop()
             threads = page.findChildren(QThread) + [value for value in vars(page).values() if isinstance(value, QThread)]

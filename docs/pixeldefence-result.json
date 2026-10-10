@@ -1,0 +1,88 @@
+{
+  "data": {
+    "battery": {
+      "info": null
+    },
+    "browser": {
+      "info": {
+        "cookiesEnabled": false,
+        "doNotTrack": "Enabled \u2713",
+        "javaEnabled": false,
+        "language": "en",
+        "languages": "en",
+        "plugins": 0,
+        "userAgent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) QtWebEngine/6.11.2 Chrome/140.0.0.0 Safari/537.36",
+        "vendor": "Google Inc."
+      }
+    },
+    "canvas": {
+      "info": {
+        "hash": "Not available",
+        "supported": false
+      }
+    },
+    "connection": {
+      "info": null
+    },
+    "hardware": {
+      "info": {
+        "colorDepth": "32-bit",
+        "cores": 8,
+        "memory": "8 GB+",
+        "pixelRatio": "1x",
+        "platform": "Win32",
+        "resolution": "1920\u00d71080",
+        "touchPoints": 0
+      }
+    },
+    "media": {
+      "info": {
+        "cameras": "Blocked",
+        "mics": "Blocked",
+        "speakers": "Blocked",
+        "total": "N/A"
+      }
+    },
+    "network": {
+      "error": "Blocked by ad-blocker or privacy extension",
+      "info": null
+    },
+    "timezone": {
+      "info": {
+        "dateFormat": "October 10, 2026",
+        "locale": "en",
+        "timezone": "America/New_York",
+        "utcOffset": "UTC-4"
+      }
+    },
+    "webgl": {
+      "info": null
+    }
+  },
+  "href": "https://pixeldefence.com/data-leaking-check/",
+  "notes": [
+    {
+      "cls": "ok",
+      "text": "IP hidden (VPN or blocked API)"
+    },
+    {
+      "cls": "ok",
+      "text": "Do Not Track enabled"
+    },
+    {
+      "cls": "ok",
+      "text": "Cookies blocked"
+    },
+    {
+      "cls": "ok",
+      "text": "WebGL vendor is masked"
+    },
+    {
+      "cls": "ok",
+      "text": "Canvas fingerprint blocked"
+    }
+  ],
+  "score": "100",
+  "title": "\ud83d\udee1 Well Protected",
+  "blocked_requests": 7
+}

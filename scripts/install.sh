@@ -46,6 +46,7 @@ if command -v apt-get >/dev/null 2>&1; then
         python3 \
         python3-pip \
         python3-pyqt6 \
+        python3-pyqt6.qtwebengine \
         python3-requests \
         python3-stem \
         macchanger \
@@ -70,6 +71,7 @@ elif command -v pacman >/dev/null 2>&1; then
         python \
         python-pip \
         python-pyqt6 \
+        python-pyqt6-webengine \
         python-requests \
         macchanger \
         rfkill \
