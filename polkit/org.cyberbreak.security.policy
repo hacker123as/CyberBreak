@@ -7,15 +7,27 @@
   <vendor_url>https://github.com/hacker123as/CyberBreak</vendor_url>
   <icon_name>cyberbreak</icon_name>
 
-  <action id="org.cyberbreak.security.run">
-    <description>Run CyberBreak Security Fortress</description>
-    <message>Authentication is required to run CyberBreak with kernel hardware privileges</message>
+  <action id="org.cyberbreak.security.helper">
+    <description>CyberBreak Security Operations</description>
+    <message>Authentication is required to execute CyberBreak security operations</message>
     <defaults>
       <allow_any>auth_admin</allow_any>
       <allow_inactive>auth_admin</allow_inactive>
       <allow_active>auth_admin_keep</allow_active>
     </defaults>
-    <annotate key="org.freedesktop.policykit.exec.path">/usr/bin/python3</annotate>
-    <annotate key="org.freedesktop.policykit.exec.allow_gui">true</annotate>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/local/lib/cyberbreak/cyberbreak-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">false</annotate>
+  </action>
+
+  <action id="org.cyberbreak.security.libexec">
+    <description>CyberBreak Security Operations (Libexec)</description>
+    <message>Authentication is required to execute CyberBreak security operations</message>
+    <defaults>
+      <allow_any>auth_admin</allow_any>
+      <allow_inactive>auth_admin</allow_inactive>
+      <allow_active>auth_admin_keep</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/cyberbreak/cyberbreak-helper</annotate>
+    <annotate key="org.freedesktop.policykit.exec.allow_gui">false</annotate>
   </action>
 </policyconfig>

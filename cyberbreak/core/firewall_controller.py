@@ -1,5 +1,5 @@
 from typing import Tuple
-from cyberbreak.core.executor import run_sync, log
+from cyberbreak.core.executor import run_privileged, run_sync, log
 
 class FirewallController:
     """Linux Netfilter/iptables profile management and leak blocking."""
@@ -8,121 +8,46 @@ class FirewallController:
     def apply_strict_profile() -> Tuple[bool, str]:
         """Applies strict stateful firewall profile: drops all inbound, allows outbound."""
         log("Applying Strict Workstation firewall profile", "FW")
-        cmds = [
-            "iptables -F",
-            "iptables -X",
-            "iptables -P INPUT DROP",
-            "iptables -P FORWARD DROP",
-            "iptables -P OUTPUT ACCEPT",
-            "iptables -A INPUT -i lo -j ACCEPT",
-            "iptables -A INPUT -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "ip6tables -P INPUT DROP",
-            "ip6tables -P FORWARD DROP",
-            "ip6tables -P OUTPUT DROP"
-        ]
-        for c in cmds:
-            code, out, err = run_sync(c)
-            if code != 0:
-                log(f"Firewall command failed: {c} -> {err}", "ERR")
-                return False, err
-        log("Strict Workstation profile active", "OK")
-        return True, "Strict Workstation Active"
+        code, out, err = run_privileged("firewall-strict")
+        if code == 0:
+            log("Strict Workstation profile active", "OK")
+            return True, "Strict Workstation Active"
+        else:
+            log(f"Firewall profile failed: {err or out}", "ERR")
+            return False, err or out
 
     @staticmethod
     def apply_vpn_killswitch() -> Tuple[bool, str]:
         """Locks down all non-VPN network traffic: only allows tun/wg/proton interfaces."""
         log("Applying VPN Killswitch profile (Zero Raw Leakage)", "FW")
-        cmds = [
-            "iptables -F",
-            "iptables -X",
-            "iptables -P INPUT DROP",
-            "iptables -P FORWARD DROP",
-            "iptables -P OUTPUT DROP",
-            "iptables -A INPUT -i lo -j ACCEPT",
-            "iptables -A OUTPUT -o lo -j ACCEPT",
-            # Allow tunnel and Proton interfaces
-            "iptables -A OUTPUT -o tun+ -j ACCEPT",
-            "iptables -A INPUT -i tun+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "iptables -A OUTPUT -o wg+ -j ACCEPT",
-            "iptables -A INPUT -i wg+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "iptables -A OUTPUT -o proton+ -j ACCEPT",
-            "iptables -A INPUT -i proton+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "iptables -A OUTPUT -o pvpn+ -j ACCEPT",
-            "iptables -A INPUT -i pvpn+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            # Block all IPv6
-            "ip6tables -F",
-            "ip6tables -P INPUT DROP",
-            "ip6tables -P FORWARD DROP",
-            "ip6tables -P OUTPUT DROP"
-        ]
-        for c in cmds:
-            code, out, err = run_sync(c)
-            if code != 0:
-                log(f"VPN Killswitch command failed: {c} -> {err}", "ERR")
-                return False, err
-        log("VPN Killswitch Active: Non-tunneled traffic blocked", "OK")
-        return True, "VPN Killswitch Active"
+        code, out, err = run_privileged("firewall-vpn")
+        if code == 0:
+            log("VPN Killswitch Active: Non-tunneled traffic blocked", "OK")
+            return True, "VPN Killswitch Active"
+        else:
+            log(f"VPN Killswitch failed: {err or out}", "ERR")
+            return False, err or out
 
     @staticmethod
     def apply_protonvpn_killswitch() -> Tuple[bool, str]:
         """Strictly locks all network traffic to Proton VPN tunnel interfaces and WireGuard/OpenVPN ports."""
         log("Applying Proton VPN Dedicated Killswitch", "FW")
-        cmds = [
-            "iptables -F",
-            "iptables -X",
-            "iptables -P INPUT DROP",
-            "iptables -P FORWARD DROP",
-            "iptables -P OUTPUT DROP",
-            "iptables -A INPUT -i lo -j ACCEPT",
-            "iptables -A OUTPUT -o lo -j ACCEPT",
-            # Allow Proton VPN interfaces
-            "iptables -A OUTPUT -o proton+ -j ACCEPT",
-            "iptables -A INPUT -i proton+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "iptables -A OUTPUT -o pvpn+ -j ACCEPT",
-            "iptables -A INPUT -i pvpn+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "iptables -A OUTPUT -o wg+ -j ACCEPT",
-            "iptables -A INPUT -i wg+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            "iptables -A OUTPUT -o tun+ -j ACCEPT",
-            "iptables -A INPUT -i tun+ -m conntrack --ctstate ESTABLISHED,RELATED -j ACCEPT",
-            # Allow outbound negotiation to Proton WireGuard (UDP 51820) and OpenVPN (UDP/TCP 1194, 443, 8443)
-            "iptables -A OUTPUT -p udp --dport 51820 -j ACCEPT",
-            "iptables -A OUTPUT -p udp --dport 1194 -j ACCEPT",
-            "iptables -A OUTPUT -p tcp --dport 1194 -j ACCEPT",
-            "iptables -A OUTPUT -p tcp --dport 8443 -j ACCEPT",
-            "iptables -A OUTPUT -p tcp --dport 443 -j ACCEPT",
-            "iptables -A OUTPUT -p udp --dport 53 -j ACCEPT",
-            # Drop all IPv6
-            "ip6tables -F",
-            "ip6tables -P INPUT DROP",
-            "ip6tables -P FORWARD DROP",
-            "ip6tables -P OUTPUT DROP"
-        ]
-        for c in cmds:
-            code, out, err = run_sync(c)
-            if code != 0:
-                log(f"Proton Killswitch command failed: {c} -> {err}", "ERR")
-                return False, err
-        log("Proton VPN Dedicated Killswitch Active", "OK")
-        return True, "Proton VPN Killswitch Active"
+        code, out, err = run_privileged("firewall-proton")
+        if code == 0:
+            log("Proton VPN Dedicated Killswitch Active", "OK")
+            return True, "Proton VPN Killswitch Active"
+        else:
+            log(f"Proton Killswitch failed: {err or out}", "ERR")
+            return False, err or out
 
     @staticmethod
     def reset_firewall() -> Tuple[bool, str]:
-        """Flushes firewall and restores default ACCEPT policies."""
-        log("Resetting firewall to standard default ACCEPT", "FW")
-        cmds = [
-            "iptables -F",
-            "iptables -X",
-            "iptables -t nat -F",
-            "iptables -t nat -X",
-            "iptables -P INPUT ACCEPT",
-            "iptables -P FORWARD ACCEPT",
-            "iptables -P OUTPUT ACCEPT",
-            "ip6tables -F",
-            "ip6tables -P INPUT ACCEPT",
-            "ip6tables -P FORWARD ACCEPT",
-            "ip6tables -P OUTPUT ACCEPT"
-        ]
-        for c in cmds:
-            run_sync(c)
-        log("Firewall reset complete", "OK")
-        return True, "Firewall Reset"
+        """Flushes firewall and restores default or native Kicksecure policies."""
+        log("Restoring default/native firewall policies", "FW")
+        code, out, err = run_privileged("firewall-reset")
+        if code == 0:
+            log("Firewall policy restored", "OK")
+            return True, "Firewall Reset"
+        else:
+            log(f"Firewall reset failed: {err or out}", "ERR")
+            return False, err or out

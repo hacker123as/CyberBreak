@@ -1,7 +1,7 @@
 import os
 import shutil
 from typing import Tuple
-from cyberbreak.core.executor import run_sync, log
+from cyberbreak.core.executor import run_sync, run_privileged, log
 
 class MetadataCleaner:
     """Document, media metadata stripping via mat2 and military-grade shredding."""
@@ -55,11 +55,12 @@ class MetadataCleaner:
 
     @staticmethod
     def purge_ram_cache() -> Tuple[bool, str]:
-        """Flushes memory buffers and drops pagecache, dentries, and inodes."""
+        """Flushes memory buffers and drops pagecache, dentries, and inodes via privileged helper."""
         log("Flushing kernel RAM buffers and dropping memory cache", "MEM")
-        run_sync("sync")
-        code, out, err = run_sync("echo 3 > /proc/sys/vm/drop_caches")
+        code, out, err = run_privileged("purge-ram")
         if code == 0:
             log("Kernel memory cache purged successfully", "OK")
             return True, "RAM Cache Purged"
-        return False, err
+        else:
+            log(f"Failed to purge RAM cache: {err or out}", "ERR")
+            return False, err or out

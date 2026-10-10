@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # ==============================================================================
 # CyberBreak - Hardened Linux System-Wide Installer
-# Target: Kicksecure / Debian / Ubuntu / Arch
-# Supports: All user accounts & non-root desktops with Polkit privilege elevation
+# Target: Kicksecure Linux (sysmaint admin / unprivileged user separation)
+# Compatible: Debian 12+, Ubuntu, Arch Linux
 # ==============================================================================
 
 set -euo pipefail
@@ -39,15 +39,11 @@ if [ "$IS_ROOT" = false ]; then
         echo -e "${YELLOW}[!] Running with user privileges. Elevating with sudo...${NC}"
     else
         echo -e "${RED}[ERROR] Root privileges or sudo required for installation.${NC}"
+        echo -e "On Kicksecure, please run installation from your 'sysmaint' account: sudo bash scripts/install.sh"
         exit 1
     fi
 fi
 
-# Detect calling user and desktop path
-CALLING_USER="${SUDO_USER:-$(whoami)}"
-USER_HOME=$(getent passwd "$CALLING_USER" | cut -d: -f6)
-
-echo -e "${CYAN}[*] Target user: ${BOLD}${CALLING_USER}${NC} (${USER_HOME})"
 echo -e "${CYAN}[*] Updating package repositories and installing dependencies...${NC}"
 
 # Debian / Kicksecure / Ubuntu package installation
@@ -86,13 +82,14 @@ elif command -v pacman >/dev/null 2>&1; then
         polkit || true
 fi
 
-# Target application directories
+# Application target directories
 APP_DIR="/opt/cyberbreak"
-echo -e "${CYAN}[*] Installing CyberBreak into ${APP_DIR}...${NC}"
+HELPER_DIR="/usr/local/lib/cyberbreak"
+LIBEXEC_DIR="/usr/libexec/cyberbreak"
 
-$SUDO_CMD mkdir -p "$APP_DIR"
+echo -e "${CYAN}[*] Deploying application files into ${APP_DIR}...${NC}"
+$SUDO_CMD mkdir -p "$APP_DIR" "$HELPER_DIR" "$LIBEXEC_DIR"
 
-# If current directory contains cyberbreak package, copy from here; otherwise clone
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PARENT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
@@ -109,43 +106,91 @@ else
     fi
 fi
 
-# Ensure all users can read and execute the app bundle
-$SUDO_CMD chmod -R 755 "$APP_DIR"
+# Secure directory and file permissions: root:root ownership, 755 dirs, 644 files
+echo -e "${CYAN}[*] Enforcing secure Kicksecure ownership and file permissions...${NC}"
+$SUDO_CMD chown -R root:root "$APP_DIR"
+$SUDO_CMD find "$APP_DIR" -type d -exec chmod 755 {} +
+$SUDO_CMD find "$APP_DIR" -type f -exec chmod 644 {} +
+$SUDO_CMD chmod 755 "$APP_DIR/cyberbreak/core/helper.py" 2>/dev/null || true
+$SUDO_CMD chmod 755 "$APP_DIR/scripts"/*.sh 2>/dev/null || true
 
-# Install python requirements fallback via pip if packages were missing from apt
+# Install Python requirements fallback if distro package manager was incomplete
 if [ -f "${APP_DIR}/requirements.txt" ]; then
-    echo -e "${CYAN}[*] Verifying Python library dependencies...${NC}"
+    echo -e "${CYAN}[*] Checking Python dependencies...${NC}"
     python3 -m pip install -r "${APP_DIR}/requirements.txt" --break-system-packages 2>/dev/null || \
     python3 -m pip install -r "${APP_DIR}/requirements.txt" 2>/dev/null || true
 fi
 
-# Create system launcher binary wrapper in /usr/local/bin
-echo -e "${CYAN}[*] Creating global /usr/local/bin/cyberbreak binary...${NC}"
+# Deploy Privileged Helper binary
+echo -e "${CYAN}[*] Installing narrowly scoped privileged helper...${NC}"
+HELPER_BIN="${HELPER_DIR}/cyberbreak-helper"
+$SUDO_CMD cp "${APP_DIR}/cyberbreak/core/helper.py" "$HELPER_BIN"
+$SUDO_CMD chown root:root "$HELPER_BIN"
+$SUDO_CMD chmod 755 "$HELPER_BIN"
+
+# Create symlink in /usr/libexec/cyberbreak/cyberbreak-helper
+$SUDO_CMD ln -sf "$HELPER_BIN" "${LIBEXEC_DIR}/cyberbreak-helper"
+
+# Create system group 'cyberbreak' for restricted helper delegation
+echo -e "${CYAN}[*] Configuring 'cyberbreak' system group and user accounts...${NC}"
+if ! getent group cyberbreak >/dev/null 2>&1; then
+    $SUDO_CMD groupadd -r cyberbreak
+fi
+
+# Add all regular user accounts (UID >= 1000) and sysmaint to 'cyberbreak' group
+for u in $(awk -F: '$3 >= 1000 && $3 < 60000 {print $1}' /etc/passwd); do
+    echo -e "    -> Enrolling user '${BOLD}${u}${NC}' into cyberbreak security group"
+    $SUDO_CMD usermod -aG cyberbreak "$u" 2>/dev/null || true
+done
+
+# Configure narrowly scoped sudoers rule for the helper ONLY
+echo -e "${CYAN}[*] Installing scoped sudoers privilege rule (/etc/sudoers.d/cyberbreak)...${NC}"
+$SUDO_CMD mkdir -p /etc/sudoers.d
+$SUDO_CMD tee /etc/sudoers.d/cyberbreak > /dev/null << EOF
+# CyberBreak scoped helper permissions for cyberbreak group members
+%cyberbreak ALL=(root) NOPASSWD: ${HELPER_BIN}, ${LIBEXEC_DIR}/cyberbreak-helper
+EOF
+$SUDO_CMD chmod 0440 /etc/sudoers.d/cyberbreak
+if command -v visudo >/dev/null 2>&1; then
+    $SUDO_CMD visudo -cf /etc/sudoers.d/cyberbreak >/dev/null 2>&1 || {
+        echo -e "${RED}[WARN] visudo check flagged /etc/sudoers.d/cyberbreak. Reverting...${NC}"
+        $SUDO_CMD rm -f /etc/sudoers.d/cyberbreak
+    }
+fi
+
+# Install Polkit policy & JavaScript rules
+echo -e "${CYAN}[*] Installing Polkit policies and rules...${NC}"
+$SUDO_CMD mkdir -p /usr/share/polkit-1/actions
+if [ -f "${APP_DIR}/polkit/org.cyberbreak.security.policy" ]; then
+    $SUDO_CMD cp "${APP_DIR}/polkit/org.cyberbreak.security.policy" /usr/share/polkit-1/actions/
+fi
+
+if [ -d /etc/polkit-1/rules.d ]; then
+    $SUDO_CMD tee /etc/polkit-1/rules.d/50-cyberbreak.rules > /dev/null << 'EOF'
+// Allow members of cyberbreak group to run cyberbreak-helper without authentication
+polkit.addRule(function(action, subject) {
+    if ((action.id == "org.cyberbreak.security.helper" || action.id == "org.cyberbreak.security.libexec") &&
+        subject.isInGroup("cyberbreak")) {
+        return polkit.Result.YES;
+    }
+});
+EOF
+    $SUDO_CMD chmod 0644 /etc/polkit-1/rules.d/50-cyberbreak.rules
+fi
+
+# Create unprivileged desktop launcher wrapper in /usr/local/bin
+echo -e "${CYAN}[*] Creating global launcher wrapper /usr/local/bin/cyberbreak...${NC}"
 $SUDO_CMD tee /usr/local/bin/cyberbreak > /dev/null << 'EOF'
 #!/usr/bin/env bash
-# CyberBreak Unified Launcher Wrapper
-export PYTHONPATH="/opt/cyberbreak:$PYTHONPATH"
-
-# If running as root, directly run
-if [ "$(id -u)" -eq 0 ]; then
-    exec /usr/bin/python3 -m cyberbreak.main "$@"
-fi
-
-# If inside X11/Wayland desktop and not root, use pkexec for seamless graphical privilege elevation
-if [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; then
-    if command -v pkexec >/dev/null 2>&1; then
-        exec pkexec env DISPLAY="$DISPLAY" XAUTHORITY="${XAUTHORITY:-$HOME/.Xauthority}" WAYLAND_DISPLAY="${WAYLAND_DISPLAY:-}" PYTHONPATH="/opt/cyberbreak" /usr/bin/python3 -m cyberbreak.main "$@"
-    fi
-fi
-
-# Fallback: run directly as current user (internal operations will request sudo/polkit when needed)
+# CyberBreak User Session Launcher
+# Runs directly inside the active user's graphical desktop session
+export PYTHONPATH="/opt/cyberbreak:${PYTHONPATH:-}"
 exec /usr/bin/python3 -m cyberbreak.main "$@"
 EOF
-
 $SUDO_CMD chmod 755 /usr/local/bin/cyberbreak
 
 # Install Icon Assets
-echo -e "${CYAN}[*] Installing vector & raster application icons...${NC}"
+echo -e "${CYAN}[*] Installing vector and high-DPI desktop icons...${NC}"
 $SUDO_CMD mkdir -p /usr/share/icons/hicolor/scalable/apps
 $SUDO_CMD mkdir -p /usr/share/icons/hicolor/256x256/apps
 if [ -f "${APP_DIR}/cyberbreak/assets/cyberbreak.svg" ]; then
@@ -153,13 +198,12 @@ if [ -f "${APP_DIR}/cyberbreak/assets/cyberbreak.svg" ]; then
     $SUDO_CMD cp "${APP_DIR}/cyberbreak/assets/cyberbreak.svg" /usr/share/icons/hicolor/256x256/apps/cyberbreak.svg
 fi
 
-# Update desktop icon cache
 if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     $SUDO_CMD gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 fi
 
-# Install FreeDesktop .desktop entry for ALL users
-echo -e "${CYAN}[*] Installing /usr/share/applications/cyberbreak.desktop for all users...${NC}"
+# Install FreeDesktop .desktop entry into Application Grid for all users
+echo -e "${CYAN}[*] Registering system-wide Application Grid launcher...${NC}"
 $SUDO_CMD tee /usr/share/applications/cyberbreak.desktop > /dev/null << 'EOF'
 [Desktop Entry]
 Name=CyberBreak
@@ -180,34 +224,36 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     $SUDO_CMD update-desktop-database 2>/dev/null || true
 fi
 
-# Install Desktop Shortcut for calling user
-USER_DESKTOP="${USER_HOME}/Desktop"
-if [ -d "$USER_DESKTOP" ]; then
-    echo -e "${CYAN}[*] Placing CyberBreak shortcut on ${USER_DESKTOP}...${NC}"
-    cp /usr/share/applications/cyberbreak.desktop "${USER_DESKTOP}/cyberbreak.desktop"
-    chmod +x "${USER_DESKTOP}/cyberbreak.desktop"
-    # Mark trusted in GNOME/XFCE if gio exists
-    if command -v gio >/dev/null 2>&1; then
-        gio set "${USER_DESKTOP}/cyberbreak.desktop" metadata::trusted true 2>/dev/null || true
+# Multi-User Desktop Shortcut Deployment:
+# Ensure desktop shortcuts are placed on ALL user desktops (including Kicksecure 'user' and 'sysmaint')
+echo -e "${CYAN}[*] Deploying desktop shortcuts across all user accounts...${NC}"
+for user_home in /home/*; do
+    if [ -d "$user_home" ]; then
+        u=$(basename "$user_home")
+        if id "$u" >/dev/null 2>&1; then
+            desktop_dir="${user_home}/Desktop"
+            $SUDO_CMD mkdir -p "$desktop_dir"
+            $SUDO_CMD cp /usr/share/applications/cyberbreak.desktop "${desktop_dir}/cyberbreak.desktop"
+            $SUDO_CMD chmod 755 "${desktop_dir}/cyberbreak.desktop"
+            $SUDO_CMD chown "$u:$u" "${desktop_dir}/cyberbreak.desktop"
+            echo -e "    -> Placed trusted shortcut on ${BOLD}${desktop_dir}/cyberbreak.desktop${NC}"
+            if command -v gio >/dev/null 2>&1; then
+                su - "$u" -c "gio set '${desktop_dir}/cyberbreak.desktop' metadata::trusted true" 2>/dev/null || true
+            fi
+        fi
     fi
-    chown "$CALLING_USER":"$CALLING_USER" "${USER_DESKTOP}/cyberbreak.desktop" 2>/dev/null || true
-fi
+done
 
-# Also place in /etc/skel/Desktop for any future new accounts created on the machine
+# Place in /etc/skel/Desktop for any future new accounts
 $SUDO_CMD mkdir -p /etc/skel/Desktop
 $SUDO_CMD cp /usr/share/applications/cyberbreak.desktop /etc/skel/Desktop/cyberbreak.desktop
 $SUDO_CMD chmod 755 /etc/skel/Desktop/cyberbreak.desktop
 
-# Install Polkit Policy
-echo -e "${CYAN}[*] Registering Polkit privilege policy...${NC}"
-$SUDO_CMD mkdir -p /usr/share/polkit-1/actions
-if [ -f "${APP_DIR}/polkit/org.cyberbreak.security.policy" ]; then
-    $SUDO_CMD cp "${APP_DIR}/polkit/org.cyberbreak.security.policy" /usr/share/polkit-1/actions/
-fi
-
-echo -e "\n${GREEN}${BOLD}[SUCCESS] CyberBreak has been installed successfully!${NC}"
-echo -e "${CYAN}------------------------------------------------------------${NC}"
-echo -e "  * Available in ${BOLD}Application Grid / Whisker Menu${NC} for all users"
-echo -e "  * Desktop icon created on ${BOLD}${USER_DESKTOP}/cyberbreak.desktop${NC}"
-echo -e "  * Launch from terminal: run ${BOLD}cyberbreak${NC}"
-echo -e "${CYAN}------------------------------------------------------------${NC}\n"
+echo -e "\n${GREEN}${BOLD}[SUCCESS] CyberBreak installed and configured successfully for Kicksecure!${NC}"
+echo -e "${CYAN}----------------------------------------------------------------------${NC}"
+echo -e "  * Kicksecure separation: Installed via ${BOLD}sysmaint${NC}, fully usable by ${BOLD}user${NC}."
+echo -e "  * Ordinary features run directly in user-space without sudo."
+echo -e "  * Privileged operations safely routed via scoped ${BOLD}cyberbreak-helper${NC}."
+echo -e "  * Desktop shortcuts placed on all user accounts in /home/*/Desktop."
+echo -e "  * Run from terminal: ${BOLD}cyberbreak${NC}"
+echo -e "${CYAN}----------------------------------------------------------------------${NC}\n"

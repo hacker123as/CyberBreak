@@ -13,7 +13,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Kicksecure%20%7C%20Debian%20%7C%20Linux-00ff66?style=for-the-badge&logo=linux&logoColor=white)](https://www.kicksecure.com/)
 [![GUI Engine](https://img.shields.io/badge/GUI-PyQt6%20Neon%20Dark%20QSS-00b8ff?style=for-the-badge&logo=qt&logoColor=white)](https://riverbankcomputing.com/software/pyqt/)
 [![VPN Integration](https://img.shields.io/badge/VPN-Proton%20VPN%20Official%20API-6d4aff?style=for-the-badge&logo=protonvpn&logoColor=white)](https://protonvpn.com/)
-[![Privilege Model](https://img.shields.io/badge/Auth-Polkit%20pkexec%20Elevation-ff3344?style=for-the-badge&logo=debian&logoColor=white)](https://wiki.debian.org/PolicyKit)
+[![Privilege Model](https://img.shields.io/badge/Auth-Scoped%20Helper%20%2B%20Polkit%20%2F%20Sudoers-00ff66?style=for-the-badge&logo=gnu&logoColor=white)](https://wiki.debian.org/PolicyKit)
 [![Anti-Forensics](https://img.shields.io/badge/Anti--Forensics-LUKS%20Erase%20%2B%20Kernel%20Crash-ffaa00?style=for-the-badge&logo=gnu&logoColor=white)](https://gitlab.com/cryptsetup/cryptsetup)
 
 **CyberBreak** is an advanced defensive workstation security suite and anti-forensics fortress built specifically for **Kicksecure Linux** and hardened Debian environments.
@@ -24,7 +24,7 @@ Unlike typical security tools that rely on mocked data, static scripts, or termi
 
 ## ⚡ Instant Console / SSH Installation (One-Liner)
 
-Copy and paste this single command into your Linux terminal or SSH console:
+Copy and paste this single command into your Linux terminal or SSH console (execute via administrator account `sysmaint` with sudo):
 
 ```bash
 sudo apt-get update -y && sudo apt-get install -y git curl && rm -rf /tmp/cyberbreak_install && git clone https://github.com/hacker123as/CyberBreak.git /tmp/cyberbreak_install && sudo bash /tmp/cyberbreak_install/scripts/install.sh && rm -rf /tmp/cyberbreak_install
@@ -36,11 +36,27 @@ sudo apt-get update -y && sudo apt-get install -y git curl && rm -rf /tmp/cyberb
 1. **Installs System Dependencies**: Resolves packages via `apt-get` / `pacman`:
    - `python3-pyqt6`, `python3-requests`, `python3-stem`, `python3-pip`
    - `macchanger`, `rfkill`, `iptables`, `network-manager`, `ethtool`, `cryptsetup`, `polkit-1`
-2. **Deploys Multi-Account System Bundle (`/opt/cyberbreak`)**: Installs the core engine into `/opt/cyberbreak` with universal `755` read/execute permissions so **any user account on the machine can use it**.
-3. **Creates Global Launcher (`/usr/local/bin/cyberbreak`)**: Any user can launch CyberBreak simply by running `cyberbreak` in the console.
-4. **Registers into Application Grid**: Installs `/usr/share/applications/cyberbreak.desktop` and updates desktop databases so CyberBreak appears natively in the Kicksecure Whisker Menu, Application Finder, GNOME Dash, and KDE Kickoff.
-5. **Places Desktop Shortcut**: Drops `cyberbreak.desktop` on your desktop (`~/Desktop/cyberbreak.desktop`), automatically marks it executable (`chmod +x`), and trusted (`gio set ... metadata::trusted true`) to allow 1-click launching with zero security prompts.
-6. **Configures Native Polkit Policy**: Installs `/usr/share/polkit-1/actions/org.cyberbreak.security.policy` so regular non-root users receive a native graphical password prompt on launch for kernel-level operations without needing terminal root workarounds.
+2. **Deploys Multi-Account System Bundle (`/opt/cyberbreak`)**: Installs the core engine into `/opt/cyberbreak` with clean `root:root` `755` permissions so **any user account on the machine can execute the code**.
+3. **Installs Scoped Privileged Helper (`/usr/local/lib/cyberbreak/cyberbreak-helper`)**: Hardened root-owned Python dispatcher restricted strictly to whitelisted actions (MAC spoofing, firewall profiles, hardware locks, sysctl enforcement, emergency blackout, and panic wipes).
+4. **Enrolls Restricted Users in `cyberbreak` Group**: Automatically creates system group `cyberbreak` and adds all desktop accounts (including `user` and `sysmaint`) and `/etc/skel`.
+5. **Configures Least-Privilege Sudoers & Polkit**: Drops `/etc/sudoers.d/cyberbreak` granting members passwordless execution *strictly* to `/usr/local/lib/cyberbreak/cyberbreak-helper` (no arbitrary root commands), with backup Polkit policy and rule (`/usr/share/polkit-1/actions/org.cyberbreak.security.policy` and `/etc/polkit-1/rules.d/50-cyberbreak.rules`).
+6. **Creates Unprivileged Global Launcher (`/usr/local/bin/cyberbreak`)**: Launches directly as the calling user—never wraps the entire Qt GUI in `pkexec` or `sudo`, avoiding Wayland/X11 socket permission issues and unwanted root desktop environments.
+7. **Registers Global Desktop Application**: Installs `/usr/share/applications/cyberbreak.desktop` and `/usr/share/icons/hicolor/scalable/apps/cyberbreak.svg`, updating XDG application databases.
+8. **Configures 1-Click Trusted Desktop Launchers**: Iterates through all `/home/*` desktop directories (e.g. `/home/user/Desktop`, `/home/sysmaint/Desktop`, and `/etc/skel/Desktop`), marking shortcuts trusted (`gio set metadata::trusted true`) and executable for instant non-root launching.
+
+---
+
+## 🔐 Kicksecure Multi-Account Security Model (sysmaint vs user)
+
+Kicksecure enforces strict privilege separation between:
+- **`sysmaint`**: The dedicated system maintenance account possessing `sudo` rights for software installation, package updates, and system configuration.
+- **`user`**: The unprivileged everyday workstation account used for browsing, terminal activity, and general application execution.
+
+### How CyberBreak Seamlessly Bridges This Boundary
+1. **Zero Root GUI Execution**: Running PyQt6/Wayland under `sudo` or `pkexec` breaks display access, corrupts user config ownership, and violates Kicksecure hardening. CyberBreak GUI runs 100% as the unprivileged desktop `user`.
+2. **Secure Privileged Helper**: Operations requiring kernel or network configuration are dispatched to `/usr/local/lib/cyberbreak/cyberbreak-helper`. The helper validates every parameter with strict regular expressions and only executes pre-approved defensive actions.
+3. **No Blanket Sudo**: The `user` account is never given general root access. `/etc/sudoers.d/cyberbreak` only authorizes execution of the single binary path `/usr/local/lib/cyberbreak/cyberbreak-helper`.
+4. **Maintenance Task Guidance**: System-level administrative actions (such as installing new system-wide packages or performing base OS upgrades) display clean instructional dialogues prompting the operator to switch to `sysmaint` rather than failing with silent permission errors.
 
 ---
 

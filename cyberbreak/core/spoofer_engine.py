@@ -3,7 +3,7 @@ import glob
 import random
 import secrets
 from typing import List, Dict, Tuple
-from cyberbreak.core.executor import run_sync, log
+from cyberbreak.core.executor import run_sync, run_privileged, log
 
 class SpooferEngine:
     """Hardware, MAC, Hostname, and Identity Spoofing Engine."""
@@ -50,74 +50,52 @@ class SpooferEngine:
 
     @staticmethod
     def randomize_mac(interface: str) -> Tuple[bool, str]:
-        """Brings interface down, randomizes MAC with macchanger or ip link, and brings it up."""
+        """Brings interface down, randomizes MAC with macchanger, and brings it up via privileged helper."""
         log(f"Initiating MAC randomization sequence on {interface}", "SPOOF")
-        # Step 1: Interface down
-        code, out, err = run_sync(f"ip link set dev {interface} down")
-        if code != 0:
-            log(f"Failed to bring {interface} down: {err}", "ERR")
-            return False, f"Interface down failed: {err}"
-
-        # Step 2: macchanger or manual random MAC
-        code, out, err = run_sync(f"macchanger -r {interface}")
-        if code != 0:
-            # Fallback to pure ip link with locally administered unicast MAC
-            rand_mac = "02:%02x:%02x:%02x:%02x:%02x" % tuple(secrets.token_bytes(5))
-            log(f"macchanger failed, applying fallback MAC: {rand_mac}", "WARN")
-            code, out, err = run_sync(f"ip link set dev {interface} address {rand_mac}")
-
-        # Step 3: Interface up
-        run_sync(f"ip link set dev {interface} up")
-        # Step 4: NetworkManager reapply if available
-        run_sync(f"nmcli device reapply {interface}")
-
-        log(f"MAC randomization completed on {interface}", "OK")
-        return True, out
+        code, out, err = run_privileged("mac-randomize", interface)
+        if code == 0:
+            log(f"MAC randomization completed on {interface}", "OK")
+            return True, out or "MAC Randomized"
+        else:
+            log(f"MAC randomization failed: {err or out}", "ERR")
+            return False, err or out
 
     @staticmethod
     def randomize_hostname() -> Tuple[bool, str]:
-        """Generates realistic OEM workstation hostname and applies via hostnamectl."""
+        """Generates realistic OEM workstation hostname and applies via privileged helper."""
         prefixes = ["DESKTOP", "THINKPAD", "DEBIAN-WS", "WORKSTATION", "HOST"]
         suffix = secrets.token_hex(3).upper()
         new_name = f"{random.choice(prefixes)}-{suffix}"
         log(f"Rotating hostname to: {new_name}", "SPOOF")
 
-        code, out, err = run_sync(f"hostnamectl set-hostname {new_name}")
+        code, out, err = run_privileged("hostname-randomize", new_name)
         if code == 0:
             log(f"Hostname successfully set to {new_name}", "OK")
             return True, new_name
         else:
-            log(f"Failed to set hostname: {err}", "ERR")
-            return False, err
+            log(f"Failed to set hostname: {err or out}", "ERR")
+            return False, err or out
 
     @staticmethod
     def reseed_machine_id() -> Tuple[bool, str]:
-        """Re-seeds /etc/machine-id to prevent cross-session correlation."""
-        new_id = secrets.token_hex(16)
+        """Re-seeds /etc/machine-id with random entropy via privileged helper."""
         log("Re-seeding /etc/machine-id with random entropy", "SPOOF")
-        try:
-            with open("/etc/machine-id", "w") as f:
-                f.write(new_id + "\n")
-            if os.path.exists("/var/lib/dbus/machine-id"):
-                with open("/var/lib/dbus/machine-id", "w") as f:
-                    f.write(new_id + "\n")
-            log(f"Machine-ID updated: {new_id[:8]}...", "OK")
-            return True, new_id
-        except Exception as e:
-            # Try via systemd tool if permission error
-            code, out, err = run_sync("systemd-machine-id-setup")
-            if code == 0:
-                log("Machine-ID refreshed via systemd-machine-id-setup", "OK")
-                return True, "systemd reset"
-            log(f"Failed to re-seed machine-id: {e}", "ERR")
-            return False, str(e)
+        code, out, err = run_privileged("machine-id-reseed")
+        if code == 0:
+            log("Machine-ID reseeded successfully", "OK")
+            return True, "Reseeded"
+        else:
+            log(f"Failed to re-seed machine-id: {err or out}", "ERR")
+            return False, err or out
 
     @staticmethod
     def set_utc_timezone() -> Tuple[bool, str]:
         """Sets timezone to UTC to defeat browser javascript clock fingerprinting."""
         log("Enforcing UTC timezone", "SPOOF")
-        code, out, err = run_sync("timedatectl set-timezone UTC")
+        code, out, err = run_privileged("timezone-utc")
         if code == 0:
             log("Timezone locked to UTC", "OK")
             return True, "UTC"
-        return False, err
+        else:
+            log(f"Failed to set UTC timezone: {err or out}", "ERR")
+            return False, err or out

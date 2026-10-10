@@ -111,6 +111,30 @@ class DesktopPage(QWidget):
         f_layout.addLayout(a_row)
 
         layout.addWidget(frame)
+
+        # Maintenance Note Frame
+        maint_frame = QFrame()
+        maint_frame.setObjectName("Card")
+        m_layout = QVBoxLayout(maint_frame)
+        m_layout.setContentsMargins(18, 18, 18, 18)
+        m_layout.setSpacing(10)
+
+        m_title = QLabel("ADMINISTRATIVE MAINTENANCE (SYSMAINT):")
+        m_title.setObjectName("CardTitle")
+        m_title.setStyleSheet("color: #00ff66; font-weight: 700;")
+        m_layout.addWidget(m_title)
+
+        m_desc = QLabel(
+            "In accordance with Kicksecure's security architecture, system-wide packages, kernel policies, "
+            "and helper authorizations are maintained through the administrative 'sysmaint' account.\n"
+            "To perform system updates, reconfigure group authorizations, or reinstall security policies, run:\n"
+            "  $ sudo bash /opt/cyberbreak/scripts/install.sh"
+        )
+        m_desc.setObjectName("HeaderSubtitle")
+        m_desc.setStyleSheet("color: #a0a0ab; line-height: 1.4;")
+        m_layout.addWidget(m_desc)
+
+        layout.addWidget(maint_frame)
         layout.addStretch()
 
         self.refresh_status()
