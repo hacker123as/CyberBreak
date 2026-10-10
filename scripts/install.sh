@@ -273,12 +273,14 @@ for user_home in /home/*; do
     if [ -d "$user_home" ]; then
         u=$(basename "$user_home")
         if id "$u" >/dev/null 2>&1; then
-            # Initialize user keystore directory for encrypted USB vaults
+            # Initialize user keystore and header directories for encrypted USB vaults
             user_cb_cfg="${user_home}/.config/cyberbreak"
             user_keys="${user_cb_cfg}/vault_keys"
-            $SUDO_CMD mkdir -p "$user_keys"
+            user_headers="${user_cb_cfg}/vault_headers"
+            user_backups="${user_cb_cfg}/vault_backups"
+            $SUDO_CMD mkdir -p "$user_keys" "$user_headers" "$user_backups"
             $SUDO_CMD chown -R "$u:$u" "${user_home}/.config" 2>/dev/null || true
-            $SUDO_CMD chmod 700 "$user_keys" 2>/dev/null || true
+            $SUDO_CMD chmod 700 "$user_keys" "$user_headers" "$user_backups" 2>/dev/null || true
 
             # Deploy desktop launcher
             desktop_dir="${user_home}/Desktop"

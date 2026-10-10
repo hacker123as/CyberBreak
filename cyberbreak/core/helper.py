@@ -36,6 +36,8 @@ ALLOWED_ACTIONS = [
     "usb-luks-format",
     "usb-luks-open",
     "usb-luks-close",
+    "usb-luks-dump",
+    "usb-luks-backup",
     "usb-mount",
     "usb-umount",
     "usb-format",
@@ -637,12 +639,14 @@ def is_safe_block_device(dev: str) -> bool:
     if not os.path.exists(dev):
         return False
     try:
+        # Check against active mountpoints
         with open("/proc/mounts", "r") as f:
             for line in f:
                 parts = line.strip().split()
                 if len(parts) >= 2:
                     mounted_dev, mountpoint = parts[0], parts[1]
-                    if mountpoint in ("/", "/boot", "/boot/efi", "/etc") and (mounted_dev == dev or dev.startswith(mounted_dev)):
+                    # Block root, boot, home, var, usr, etc.
+                    if mountpoint in ("/", "/boot", "/boot/efi", "/etc", "/home", "/var", "/usr", "/tmp") and (mounted_dev == dev or dev.startswith(mounted_dev) or mounted_dev.startswith(dev)):
                         return False
     except Exception:
         pass
@@ -653,23 +657,62 @@ def action_usb_luks_format(args: List[str]) -> int:
         print("ERROR: Device and keyfile path required", file=sys.stderr)
         return 2
     dev, keyfile = args[0], args[1]
+    header_file = args[2] if len(args) > 2 and args[2] not in ("none", "") else None
     if not is_safe_block_device(dev):
         print(f"ERROR: Unsafe target device '{dev}'", file=sys.stderr)
         return 3
     if not os.path.exists(keyfile):
         print(f"ERROR: Keyfile not found: '{keyfile}'", file=sys.stderr)
         return 4
+
+    # Calibrate Argon2id memory to system capacity (min 128MB, up to 1GB, default 512MB)
+    pbkdf_mem_kb = 524288
+    try:
+        with open("/proc/meminfo", "r") as f:
+            for line in f:
+                if line.startswith("MemTotal:"):
+                    tot_kb = int(line.split()[1])
+                    pbkdf_mem_kb = max(131072, min(1048576, tot_kb // 4))
+                    break
+    except Exception:
+        pass
+
+    # Initialize empty detached header if requested
+    if header_file:
+        try:
+            h_dir = os.path.dirname(header_file)
+            if h_dir:
+                os.makedirs(h_dir, exist_ok=True)
+            if not os.path.exists(header_file):
+                with open(header_file, "wb") as f:
+                    f.write(b"\x00" * (16 * 1024 * 1024))
+                os.chmod(header_file, 0o600)
+        except Exception as e:
+            print(f"ERROR: Failed creating detached header file: {e}", file=sys.stderr)
+            return 5
+
+    # 1. AES-256-XTS (aes-xts-plain64, 512-bit combined key)
+    # 2. Argon2id PBKDF with hardware-calibrated memory & work factor
     cmd = [
         "cryptsetup", "luksFormat", "--type", "luks2",
         "--cipher", "aes-xts-plain64", "--key-size", "512",
-        "--hash", "sha512", "--batch-mode",
-        "--key-file", keyfile, dev
+        "--hash", "sha512",
+        "--pbkdf", "argon2id",
+        "--pbkdf-memory", str(pbkdf_mem_kb),
+        "--pbkdf-parallelism", "4",
+        "--iter-time", "3000",
+        "--batch-mode",
+        "--key-file", keyfile
     ]
+    if header_file:
+        cmd.extend(["--header", header_file])
+    cmd.append(dev)
+
     code, out, err = run_cmd(cmd)
     if code != 0:
         print(f"ERROR: {err or out}", file=sys.stderr)
         return code
-    print(f"OK: LUKS2 volume formatted on {dev}")
+    print(f"OK: Hardened LUKS2 (AES-256-XTS / Argon2id) volume formatted on {dev}")
     return 0
 
 def action_usb_luks_open(args: List[str]) -> int:
@@ -677,13 +720,17 @@ def action_usb_luks_open(args: List[str]) -> int:
         print("ERROR: Device, mapper name, and keyfile required", file=sys.stderr)
         return 2
     dev, mapper, keyfile = args[0], args[1], args[2]
+    header_file = args[3] if len(args) > 3 and args[3] not in ("none", "") else None
     if not re.match(r"^[a-zA-Z0-9_\-]{1,32}$", mapper):
         print("ERROR: Invalid mapper name", file=sys.stderr)
         return 3
     if not os.path.exists(keyfile):
         print("ERROR: Keyfile not found", file=sys.stderr)
         return 4
-    code, out, err = run_cmd(["cryptsetup", "luksOpen", dev, mapper, "--key-file", keyfile])
+    cmd = ["cryptsetup", "luksOpen", dev, mapper, "--key-file", keyfile]
+    if header_file and os.path.exists(header_file):
+        cmd.extend(["--header", header_file])
+    code, out, err = run_cmd(cmd)
     if code != 0:
         print(f"ERROR: {err or out}", file=sys.stderr)
         return code
@@ -702,6 +749,54 @@ def action_usb_luks_close(args: List[str]) -> int:
         print(f"ERROR: {err or out}", file=sys.stderr)
         return code
     print(f"OK: Mapper {mapper} closed")
+    return 0
+
+def action_usb_luks_dump(args: List[str]) -> int:
+    if len(args) < 1:
+        print("ERROR: Device or header required", file=sys.stderr)
+        return 2
+    dev = args[0]
+    header_file = args[1] if len(args) > 1 and args[1] not in ("none", "") else None
+    cmd = ["cryptsetup", "luksDump"]
+    if header_file and os.path.exists(header_file):
+        cmd.extend(["--header", header_file])
+    cmd.append(dev)
+    code, out, err = run_cmd(cmd)
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(out)
+    return 0
+
+def action_usb_luks_backup(args: List[str]) -> int:
+    if len(args) < 2:
+        print("ERROR: Device and backup destination required", file=sys.stderr)
+        return 2
+    dev, backup_path = args[0], args[1]
+    header_file = args[2] if len(args) > 2 and args[2] not in ("none", "") else None
+    if header_file and os.path.exists(header_file):
+        try:
+            import shutil
+            b_dir = os.path.dirname(backup_path)
+            if b_dir:
+                os.makedirs(b_dir, exist_ok=True)
+            shutil.copy2(header_file, backup_path)
+            os.chmod(backup_path, 0o600)
+            print(f"OK: Detached header backup saved to {backup_path}")
+            return 0
+        except Exception as e:
+            print(f"ERROR: Failed copying header: {e}", file=sys.stderr)
+            return 4
+    cmd = ["cryptsetup", "luksHeaderBackup", dev, "--header-backup-file", backup_path, "--batch-mode"]
+    code, out, err = run_cmd(cmd)
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    try:
+        os.chmod(backup_path, 0o600)
+    except Exception:
+        pass
+    print(f"OK: Header backup created at {backup_path}")
     return 0
 
 def action_usb_mount(args: List[str]) -> int:
@@ -881,6 +976,8 @@ def main():
         "usb-luks-format": action_usb_luks_format,
         "usb-luks-open": action_usb_luks_open,
         "usb-luks-close": action_usb_luks_close,
+        "usb-luks-dump": action_usb_luks_dump,
+        "usb-luks-backup": action_usb_luks_backup,
         "usb-mount": action_usb_mount,
         "usb-umount": action_usb_umount,
         "usb-format": action_usb_format,
