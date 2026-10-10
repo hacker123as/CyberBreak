@@ -1,5 +1,25 @@
-from PyQt6.QtCore import QObject, QTimer
-from PyQt6.QtGui import QGuiApplication
+try:
+    from PyQt6.QtCore import QObject, QTimer
+    from PyQt6.QtGui import QGuiApplication
+except ImportError:
+    class QObject:
+        pass
+    class QTimer:
+        def __init__(self, *a, **k):
+            pass
+        def setSingleShot(self, *a):
+            pass
+        class timeout:
+            @staticmethod
+            def connect(fn):
+                pass
+        def start(self, *a):
+            pass
+    class QGuiApplication:
+        @staticmethod
+        def clipboard():
+            return None
+
 from cyberbreak.core.executor import log
 
 class ClipboardGuard(QObject):

@@ -2,7 +2,26 @@ import subprocess
 import shlex
 import time
 from typing import Tuple, List, Optional
-from PyQt6.QtCore import QObject, pyqtSignal, QThread
+
+try:
+    from PyQt6.QtCore import QObject, pyqtSignal, QThread
+    HAS_PYQT = True
+except ImportError:
+    HAS_PYQT = False
+    class QObject:
+        pass
+    class QThread:
+        def __init__(self):
+            pass
+        def start(self):
+            self.run()
+    def pyqtSignal(*args):
+        class DummySignal:
+            def emit(self, *a, **k):
+                pass
+            def connect(self, fn):
+                pass
+        return DummySignal()
 
 class LogEmitter(QObject):
     log_message = pyqtSignal(str, str)  # (level, message)
