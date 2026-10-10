@@ -9,10 +9,73 @@ class NetworkAuditor:
     """Real socket and network probing engine with zero mock data."""
 
     ENDPOINTS = [
+        "https://api.protonvpn.ch/vpn/location",
         "https://am.i.mullvad.net/json",
         "https://ifconfig.me/all.json",
         "https://api.ipify.org?format=json"
     ]
+
+    @staticmethod
+    def check_proton_vpn() -> Dict[str, Any]:
+        """Probes Proton VPN official location API and local interface state."""
+        proton_status = {
+            "is_connected": False,
+            "server": "None",
+            "ip": "Unknown",
+            "country": "Unknown",
+            "city": "Unknown",
+            "isp": "Unknown",
+            "interface": "None"
+        }
+
+        # 1. Query Proton VPN official API
+        proton_apis = [
+            "https://api.protonvpn.ch/vpn/location",
+            "https://api.protonmail.ch/vpn/location"
+        ]
+        for api_url in proton_apis:
+            try:
+                log(f"Auditing Proton VPN status via {api_url}", "NET")
+                req = urllib.request.Request(
+                    api_url,
+                    headers={"User-Agent": "ProtonVPN/3.0.0"}
+                )
+                with urllib.request.urlopen(req, timeout=5) as resp:
+                    raw_data = resp.read().decode("utf-8")
+                    parsed = json.loads(raw_data)
+                    ip = parsed.get("IP", parsed.get("ip", "Unknown"))
+                    isp = parsed.get("ISP", parsed.get("isp", ""))
+                    country = parsed.get("Country", parsed.get("country", ""))
+                    city = parsed.get("City", parsed.get("city", ""))
+
+                    proton_status["ip"] = ip
+                    proton_status["isp"] = isp
+                    proton_status["country"] = country
+                    proton_status["city"] = city
+
+                    # If ISP contains Proton or if API returns successfully from Proton network
+                    if "proton" in isp.lower() or "proton" in parsed.get("Organization", "").lower():
+                        proton_status["is_connected"] = True
+                        proton_status["server"] = f"ProtonVPN ({country})"
+                    break
+            except Exception as e:
+                log(f"Proton API query {api_url} check: {e}", "WARN")
+
+        # 2. Check local network interfaces for Proton adapters (proton0, pvpn*, wg-proton*)
+        try:
+            import os
+            net_path = "/sys/class/net"
+            if os.path.exists(net_path):
+                for iface in os.listdir(net_path):
+                    if iface.startswith(("proton", "pvpn", "wg-proton")):
+                        proton_status["interface"] = iface
+                        proton_status["is_connected"] = True
+                        log(f"Local Proton VPN interface detected: {iface}", "OK")
+                        break
+        except Exception:
+            pass
+
+        return proton_status
 
     @staticmethod
     def get_external_identity() -> Dict[str, Any]:
@@ -23,6 +86,7 @@ class NetworkAuditor:
             "country": "Unknown",
             "city": "Unknown",
             "is_mullvad": False,
+            "is_proton": False,
             "raw": {}
         }
         for url in NetworkAuditor.ENDPOINTS:
@@ -35,12 +99,15 @@ class NetworkAuditor:
                 with urllib.request.urlopen(req, timeout=6) as response:
                     raw_text = response.read().decode("utf-8")
                     parsed = json.loads(raw_text)
-                    if "ip" in parsed:
-                        data["ip"] = parsed.get("ip", "Unknown")
-                        data["isp"] = parsed.get("organization", parsed.get("isp", "Unknown"))
-                        data["country"] = parsed.get("country", parsed.get("country_name", "Unknown"))
-                        data["city"] = parsed.get("city", "Unknown")
+                    ip_val = parsed.get("ip", parsed.get("IP", "Unknown"))
+                    if ip_val != "Unknown":
+                        data["ip"] = ip_val
+                        data["isp"] = parsed.get("organization", parsed.get("isp", parsed.get("ISP", "Unknown")))
+                        data["country"] = parsed.get("country", parsed.get("country_name", parsed.get("Country", "Unknown")))
+                        data["city"] = parsed.get("city", parsed.get("City", "Unknown"))
                         data["is_mullvad"] = parsed.get("mullvad_exit_ip", False)
+                        if "proton" in data["isp"].lower():
+                            data["is_proton"] = True
                         data["raw"] = parsed
                         log(f"Identity resolved: IP={data['ip']} ISP={data['isp']}", "OK")
                         return data
@@ -56,6 +123,7 @@ class NetworkAuditor:
             "interface": "Unknown",
             "gateway_ip": "Unknown",
             "is_tunnel": False,
+            "is_proton": False,
             "leak_warning": False
         }
         try:
@@ -70,7 +138,11 @@ class NetworkAuditor:
                     hex_gw = fields[2]
                     gw_parts = [str(int(hex_gw[i:i+2], 16)) for i in (6, 4, 2, 0)]
                     result["gateway_ip"] = ".".join(gw_parts)
-                    if iface.startswith(("tun", "wg", "tap", "ppp", "virbr")):
+                    if iface.startswith(("proton", "pvpn", "wg-proton")):
+                        result["is_tunnel"] = True
+                        result["is_proton"] = True
+                        result["leak_warning"] = False
+                    elif iface.startswith(("tun", "wg", "tap", "ppp", "virbr")):
                         result["is_tunnel"] = True
                         result["leak_warning"] = False
                     else:

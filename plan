@@ -72,46 +72,48 @@ It is engineered as a first-class native Linux desktop application:
 ================================================================================
 
 --- [A. NETWORK & LEAK DETECTION ARSENAL] ---
-1. Multi-Endpoint External IPv4/IPv6 Verifier (Triple-redundant: Mullvad, ifconfig.me, ipify).
-2. Autonomous ASN & ISP Ownership Resolver (Cross-references active IP with ISP databases).
-3. Live Default Gateway Route Auditor (Parses `/proc/net/route` and `ip -j route`).
-4. VPN/Tor Gateway Bypass Sentinel (Flags packets leaving outside tun0/wg0/veth tunnels).
-5. Raw AF_INET6 Socket Probe (Detects rogue IPv6 addresses that bypass IPv4 killswitches).
-6. Nonce-Based DNS Leak Tester (Dispatches unique UUID DNS lookups to spot ISP interception).
-7. Active DNS Resolver Ownership Auditor (Validates `/etc/resolv.conf` against Zero-Knowledge DNS).
-8. WebRTC STUN Packet Analyzer (Probes UDP 3478 exposure to prevent browser real-IP leaks).
-9. DNS-over-HTTPS (DoH) / DNS-over-TLS (DoT) Switcher (Mullvad, Quad9, Cloudflare Zero-Knowledge).
-10. DNSSEC Cryptographic Validation Check (Verifies RRSIG DNS integrity).
-11. Covert Channel & ICMP Tunneling Detector (Monitors abnormal ICMP payload sizing via AF_PACKET).
-12. Network Interface MTU Normalizer (Standardizes packet sizes to defeat packet-size fingerprinting).
+1. Multi-Endpoint External IPv4/IPv6 Verifier (Triple-redundant: Proton VPN official API, Mullvad, ifconfig.me, ipify).
+2. Proton VPN Real-Time Connection Auditor (Queries https://api.protonvpn.ch/vpn/location and audits `proton0`, `pvpn*`, `wg-proton*`).
+3. Autonomous ASN & ISP Ownership Resolver (Detects Proton AG ASN / Exit node identification).
+4. Live Default Gateway Route Auditor (Parses `/proc/net/route` and `ip -j route`).
+5. VPN/Tor Gateway Bypass Sentinel (Flags packets leaving outside tun0/wg0/proton0/veth tunnels).
+6. Raw AF_INET6 Socket Probe (Detects rogue IPv6 addresses that bypass IPv4 killswitches).
+7. Nonce-Based DNS Leak Tester (Dispatches unique UUID DNS lookups to spot ISP interception).
+8. Active DNS Resolver Ownership Auditor (Validates `/etc/resolv.conf` against Zero-Knowledge DNS & Proton DNS).
+9. WebRTC STUN Packet Analyzer (Probes UDP 3478 exposure to prevent browser real-IP leaks).
+10. DNS-over-HTTPS (DoH) / DNS-over-TLS (DoT) Switcher (Proton, Mullvad, Quad9, Cloudflare Zero-Knowledge).
+11. DNSSEC Cryptographic Validation Check (Verifies RRSIG DNS integrity).
+12. Covert Channel & ICMP Tunneling Detector (Monitors abnormal ICMP payload sizing via AF_PACKET).
+13. Network Interface MTU Normalizer (Standardizes packet sizes to defeat packet-size fingerprinting).
 
 --- [B. HARDWARE, IDENTITY & RF SPOOFING] ---
-13. Physical Network Adapter MAC Randomizer (Automated down -> macchanger -r -> up cycle).
-14. Vendor-Specific OUI Pool Spoofing (Emulates legitimate Dell/Intel/Apple network cards).
-15. Wi-Fi Probe Request Randomizer (Configures `wifi.scan-rand-mac-address = yes` in NetworkManager).
-16. Dynamic OEM Hostname Generator (Rotates system names into generic corporate laptop profiles).
-17. D-Bus & Linux Machine-ID Auto-Reseeder (Zeroes and re-generates `/etc/machine-id` on demand).
-18. DMI / SMBIOS Hardware UUID Auditor (Inspects `/sys/devices/virtual/dmi/id/*` for tracking identifiers).
-19. UTC Timezone & Locale Cloaking (`timedatectl set-timezone UTC` kills JS clock fingerprinting).
-20. Bluetooth Low Energy (BLE) Address Rotator (`btmgmt` MAC address cycle).
-21. Screen Resolution & DPI Normalizer (Flags standard 1080p viewport targets for browser privacy).
+14. Physical Network Adapter MAC Randomizer (Automated down -> macchanger -r -> up cycle).
+15. Vendor-Specific OUI Pool Spoofing (Emulates legitimate Dell/Intel/Apple network cards).
+16. Wi-Fi Probe Request Randomizer (Configures `wifi.scan-rand-mac-address = yes` in NetworkManager).
+17. Dynamic OEM Hostname Generator (Rotates system names into generic corporate laptop profiles).
+18. D-Bus & Linux Machine-ID Auto-Reseeder (Zeroes and re-generates `/etc/machine-id` on demand).
+19. DMI / SMBIOS Hardware UUID Auditor (Inspects `/sys/devices/virtual/dmi/id/*` for tracking identifiers).
+20. UTC Timezone & Locale Cloaking (`timedatectl set-timezone UTC` kills JS clock fingerprinting).
+21. Bluetooth Low Energy (BLE) Address Rotator (`btmgmt` MAC address cycle).
+22. Screen Resolution & DPI Normalizer (Flags standard 1080p viewport targets for browser privacy).
 
 --- [C. ANONYMITY, TOR & TRAFFIC OBFUSCATION] ---
-22. Tor Control Port Circuit Inspector (Connects to port 9051; visualizes Guard, Middle, Exit hops).
-23. One-Click Tor New Identity Trigger (Dispatches `SIGNAL NEWNYM` to rebuild circuits).
-24. Per-Application Tor Stream Isolation (Creates unique SOCKS5 user/pass authentication tags).
-25. Background Decoy / Cover Traffic Generator (Emits randomized dummy HTTPS packets to foil ISP timing attacks).
-26. Anti-Censorship Pluggable Transports Manager (Configures obfs4, Snowflake, and Meek bridges).
-27. Ephemeral Tor Onion Service (.onion) File Drop (Spins up temporary v3 hidden service for private transfers).
-28. Secure Time Sync via sdwdate (HTTP-based anonymous time sync over Tor, defeating NTP clock-skew attacks).
+23. Tor Control Port Circuit Inspector (Connects to port 9051; visualizes Guard, Middle, Exit hops).
+24. One-Click Tor New Identity Trigger (Dispatches `SIGNAL NEWNYM` to rebuild circuits).
+25. Per-Application Tor Stream Isolation (Creates unique SOCKS5 user/pass authentication tags).
+26. Background Decoy / Cover Traffic Generator (Emits randomized dummy HTTPS packets to foil ISP timing attacks).
+27. Anti-Censorship Pluggable Transports Manager (Configures obfs4, Snowflake, and Meek bridges).
+28. Ephemeral Tor Onion Service (.onion) File Drop (Spins up temporary v3 hidden service for private transfers).
+29. Secure Time Sync via sdwdate (HTTP-based anonymous time sync over Tor, defeating NTP clock-skew attacks).
 
 --- [D. FIREWALL & NETFILTER FORTRESS] ---
-29. Strict Workstation Firewall Profile (Unconditional inbound drop, stateful outbound only).
-30. VPN/WireGuard Killswitch Profile (Strictly drops all traffic not exiting via `tun+` or `wg+`).
-31. Tor-Only TransPort Profile (Directs and restricts all system networking exclusively to local Tor).
-32. Outbound Port 53 Hijack Redirector (Forces all unencrypted DNS queries into local encrypted stubs).
-33. Dynamic Port Scan Blackhole (Auto-nullroutes IPs running unauthorized SYN scans).
-34. RFKILL Full Wireless Lockdown (Disables Wi-Fi, Bluetooth, and WWAN at kernel subsystem layer).
+30. Strict Workstation Firewall Profile (Unconditional inbound drop, stateful outbound only).
+31. Dedicated Proton VPN Killswitch Profile (Strictly locks traffic to `proton+`, `pvpn+`, `wg+`, `tun+` and WireGuard UDP 51820).
+32. Universal VPN/WireGuard Killswitch Profile (Strictly drops all traffic not exiting via `tun+`, `wg+`, or `proton+`).
+33. Tor-Only TransPort Profile (Directs and restricts all system networking exclusively to local Tor).
+34. Outbound Port 53 Hijack Redirector (Forces all unencrypted DNS queries into local encrypted stubs).
+35. Dynamic Port Scan Blackhole (Auto-nullroutes IPs running unauthorized SYN scans).
+36. RFKILL Full Wireless Lockdown (Disables Wi-Fi, Bluetooth, and WWAN at kernel subsystem layer).
 
 --- [E. HARDWARE INTERCEPTION & PHYSICAL DEFENSES] ---
 35. BadUSB / Rubber Ducky Blocker (Sysfs `authorized_default = 0` locks newly inserted USB ports).

@@ -13,11 +13,13 @@ class LeakWorker(QThread):
         gw = NetworkAuditor.check_default_gateway()
         dns = NetworkAuditor.check_dns_resolvers()
         ipv6 = NetworkAuditor.check_ipv6_exposure()
+        proton = NetworkAuditor.check_proton_vpn()
         self.finished_results.emit({
             "ident": ident,
             "gw": gw,
             "dns": dns,
-            "ipv6": ipv6
+            "ipv6": ipv6,
+            "proton": proton
         })
 
 class LeakPage(QWidget):
@@ -108,19 +110,28 @@ class LeakPage(QWidget):
         gw = data.get("gw", {})
         dns = data.get("dns", [])
         ipv6 = data.get("ipv6", {})
+        proton = data.get("proton", {})
 
         # IP Card
-        ip = ident.get("ip", "Unknown")
-        isp = ident.get("isp", "Unknown")
+        ip = ident.get("ip", proton.get("ip", "Unknown"))
+        isp = ident.get("isp", proton.get("isp", "Unknown"))
         self.card_ip.set_value(ip)
-        self.card_ip.subtitle_label.setText(f"{isp} • {ident.get('city', '')}, {ident.get('country', '')}")
-        self.card_ip.set_pill("RESOLVED", "SECURE" if ident.get("is_mullvad") else "WARN")
+        self.card_ip.subtitle_label.setText(f"{isp} • {ident.get('city', proton.get('city', ''))}, {ident.get('country', proton.get('country', ''))}")
+        if proton.get("is_connected") or ident.get("is_proton"):
+            self.card_ip.set_pill("PROTON VPN SECURE", "SECURE")
+        elif ident.get("is_mullvad"):
+            self.card_ip.set_pill("MULLVAD SECURE", "SECURE")
+        else:
+            self.card_ip.set_pill("PUBLIC IP", "WARN")
 
         # Gateway Card
-        iface = gw.get("interface", "Unknown")
-        is_tun = gw.get("is_tunnel", False)
+        iface = gw.get("interface", proton.get("interface", "Unknown"))
+        is_tun = gw.get("is_tunnel", False) or proton.get("is_connected", False)
         self.card_gw.set_value(iface)
-        if is_tun:
+        if proton.get("is_connected") or gw.get("is_proton"):
+            self.card_gw.subtitle_label.setText(f"Default gateway via Proton VPN tunnel ({iface})")
+            self.card_gw.set_pill("PROTON TUNNEL", "SECURE")
+        elif is_tun:
             self.card_gw.subtitle_label.setText(f"Default gateway {gw.get('gateway_ip')} via encrypted tunnel")
             self.card_gw.set_pill("TUNNEL SECURE", "SECURE")
         else:
@@ -144,11 +155,13 @@ class LeakPage(QWidget):
             self.card_ipv6.set_pill("SECURE", "SECURE")
 
         # Detail report
+        proton_str = f"Connected ({proton.get('server', 'Proton Server')})" if proton.get("is_connected") else "Disconnected"
         report = (
             f"=== LEAK AUDIT REPORT ===\n"
+            f"Proton VPN Status: {proton_str}\n"
             f"External IP:       {ip}\n"
             f"ISP / ASN:         {isp}\n"
-            f"Country:           {ident.get('country')}\n"
+            f"Country:           {ident.get('country', proton.get('country'))}\n"
             f"Default Route:     {iface} -> {gw.get('gateway_ip')} (Tunnel: {is_tun})\n"
             f"Nameservers:       {dns_str}\n"
             f"IPv6 Status:       Supported={ipv6.get('ipv6_supported')}, GlobalLeak={ipv6.get('has_global_ipv6')}\n"

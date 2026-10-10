@@ -87,7 +87,7 @@ class FirewallPage(QWidget):
         p2_info = QVBoxLayout()
         p2_lbl = QLabel("VPN-Only Killswitch (Zero Raw Leakage)")
         p2_lbl.setStyleSheet("font-weight: 600; color: #00ff66;")
-        p2_sub = QLabel("Blocks ALL traffic on eth0/wlan0. Only allows encrypted tunnel interfaces (tun+, wg+).")
+        p2_sub = QLabel("Blocks ALL traffic on eth0/wlan0. Only allows encrypted tunnel interfaces (tun+, wg+, proton+).")
         p2_sub.setObjectName("HeaderSubtitle")
         p2_info.addWidget(p2_lbl)
         p2_info.addWidget(p2_sub)
@@ -99,6 +99,26 @@ class FirewallPage(QWidget):
         p2_btn.clicked.connect(self.on_apply_vpn)
         p2_row.addWidget(p2_btn)
         f_layout.addLayout(p2_row)
+
+        f_layout.addWidget(self.create_divider())
+
+        # Proton VPN dedicated killswitch
+        proton_row = QHBoxLayout()
+        proton_info = QVBoxLayout()
+        proton_lbl = QLabel("Proton VPN Dedicated Killswitch")
+        proton_lbl.setStyleSheet("font-weight: 600; color: #00ddff;")
+        proton_sub = QLabel("Locks down traffic strictly to Proton VPN interfaces (proton+, pvpn+) and WireGuard/OpenVPN ports.")
+        proton_sub.setObjectName("HeaderSubtitle")
+        proton_info.addWidget(proton_lbl)
+        proton_info.addWidget(proton_sub)
+        proton_row.addLayout(proton_info)
+        proton_row.addStretch()
+
+        proton_btn = QPushButton("ARM PROTON KILLSWITCH")
+        proton_btn.setStyleSheet("border-color: #00ddff; color: #00ddff; font-weight: 700;")
+        proton_btn.clicked.connect(self.on_apply_proton)
+        proton_row.addWidget(proton_btn)
+        f_layout.addLayout(proton_row)
 
         f_layout.addWidget(self.create_divider())
 
@@ -141,8 +161,16 @@ class FirewallPage(QWidget):
         if ok:
             self.fw_card.set_value("Killswitch Active")
             self.fw_card.set_pill("ISOLATED", "SECURE")
-            self.vpn_card.set_value("Armed (tun+/wg+ only)")
+            self.vpn_card.set_value("Armed (tun+/wg+/proton+)")
             self.vpn_card.set_pill("ARMED", "SECURE")
+
+    def on_apply_proton(self):
+        ok, res = FirewallController.apply_protonvpn_killswitch()
+        if ok:
+            self.fw_card.set_value("Proton Killswitch")
+            self.fw_card.set_pill("PROTECTED", "SECURE")
+            self.vpn_card.set_value("Proton VPN Locked")
+            self.vpn_card.set_pill("PROTON ARMED", "SECURE")
 
     def on_reset(self):
         FirewallController.reset_firewall()

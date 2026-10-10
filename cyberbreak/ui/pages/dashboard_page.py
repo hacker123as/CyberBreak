@@ -14,10 +14,12 @@ class AuditWorker(QThread):
         identity = NetworkAuditor.get_external_identity()
         gw = NetworkAuditor.check_default_gateway()
         ipv6 = NetworkAuditor.check_ipv6_exposure()
+        proton = NetworkAuditor.check_proton_vpn()
         self.finished_data.emit({
             "identity": identity,
             "gw": gw,
-            "ipv6": ipv6
+            "ipv6": ipv6,
+            "proton": proton
         })
 
 class DashboardPage(QWidget):
@@ -131,20 +133,28 @@ class DashboardPage(QWidget):
         self.scan_btn.setText("RUN SYSTEM AUDIT")
 
         ident = data.get("identity", {})
-        ip_val = ident.get("ip", "Unknown")
-        isp = ident.get("isp", "Unknown")
+        proton = data.get("proton", {})
+        ip_val = ident.get("ip", proton.get("ip", "Unknown"))
+        isp = ident.get("isp", proton.get("isp", "Unknown"))
         self.card_ip.set_value(ip_val)
-        self.card_ip.subtitle_label.setText(f"ISP: {isp} ({ident.get('country', '')})")
-        if ident.get("is_mullvad") or "tor" in isp.lower():
+        self.card_ip.subtitle_label.setText(f"ISP: {isp} ({ident.get('country', proton.get('country', ''))})")
+        
+        if proton.get("is_connected") or ident.get("is_proton"):
+            self.card_ip.set_pill("PROTON VPN SECURE", "SECURE")
+            self.card_ip.subtitle_label.setText(f"Proton VPN Active: {isp} ({ident.get('country', proton.get('country', ''))})")
+        elif ident.get("is_mullvad") or "tor" in isp.lower():
             self.card_ip.set_pill("PROTECTED", "SECURE")
         else:
             self.card_ip.set_pill("PUBLIC IP", "WARN")
 
         gw = data.get("gw", {})
-        iface = gw.get("interface", "Unknown")
-        is_tun = gw.get("is_tunnel", False)
+        iface = gw.get("interface", proton.get("interface", "Unknown"))
+        is_tun = gw.get("is_tunnel", False) or proton.get("is_connected", False)
         self.card_route.set_value(f"{iface} ({gw.get('gateway_ip', '')})")
-        if is_tun:
+        if proton.get("is_connected") or gw.get("is_proton"):
+            self.card_route.subtitle_label.setText("Routed via Proton VPN encrypted tunnel")
+            self.card_route.set_pill("PROTON TUNNEL", "SECURE")
+        elif is_tun:
             self.card_route.subtitle_label.setText("Routed via encrypted tunnel/proxy")
             self.card_route.set_pill("ENCRYPTED", "SECURE")
         else:
