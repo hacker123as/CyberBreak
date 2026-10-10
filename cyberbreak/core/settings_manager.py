@@ -18,10 +18,6 @@ DEFAULT_SETTINGS: Dict[str, Any] = {
 }
 
 class SettingsManager:
-    """
-    Manages persistent application settings and defensive automation toggles.
-    Engineered by lilami only.
-    """
 
     @staticmethod
     def get_config_dir() -> str:

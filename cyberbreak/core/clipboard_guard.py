@@ -23,7 +23,6 @@ except ImportError:
 from cyberbreak.core.executor import log
 
 class ClipboardGuard(QObject):
-    """Automatically scrubs system clipboard to defeat memory-scraping malware."""
 
     def __init__(self, timeout_seconds: int = 30):
         super().__init__()

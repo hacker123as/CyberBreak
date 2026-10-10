@@ -7,11 +7,6 @@ from typing import List, Dict, Any, Tuple
 from cyberbreak.core.executor import log, run_sync, run_privileged
 
 class USBArmory:
-    """
-    Storage Armory, LUKS2 Vault Encoder/Decoder, Drive Sanitizer,
-    Raw ISO Flasher, SSD TRIM Controller & Full OS Backup.
-    Engineered by lilami.
-    """
 
     @staticmethod
     def get_keys_dir() -> str:
@@ -49,15 +44,14 @@ class USBArmory:
 
     @staticmethod
     def list_devices() -> List[Dict[str, Any]]:
-        """Enumerates connected block devices and filters removable/USB drives."""
         devices = []
         rc, out, _ = run_sync("lsblk -J -b -o NAME,KNAME,PATH,SIZE,TYPE,FSTYPE,LABEL,MOUNTPOINT,MODEL,RM,HOTPLUG,TRAN")
         if rc == 0 and out:
             try:
                 data = json.loads(out)
                 block_devices = data.get("blockdevices", [])
-                
-                # Check root partition
+
+
                 root_dev = ""
                 try:
                     with open("/proc/mounts", "r") as f:
@@ -119,20 +113,15 @@ class USBArmory:
 
     @classmethod
     def encode_and_format_luks(cls, target_dev: str, vault_label: str = "CyberVault") -> Tuple[bool, str]:
-        """
-        Formats USB with LUKS2 encryption, stores key in app vault_keys,
-        creates EXT4 filesystem, and registers vault.
-        Windows sees RAW unreadable/unrecognized bytes.
-        """
         if not target_dev or not target_dev.startswith("/dev/"):
             return False, "Invalid target block device"
 
-        # Sanitize label
+
         vault_label = re.sub(r"[^a-zA-Z0-9_\-]", "", vault_label) or "CyberVault"
         vault_id = f"vault_{secrets.token_hex(4)}"
         mapper_name = f"cb_{vault_id}"
 
-        # Generate 512-bit key
+
         key_bytes = secrets.token_bytes(64)
         key_file = os.path.join(cls.get_keys_dir(), f"{vault_id}.key")
         try:
@@ -149,13 +138,13 @@ class USBArmory:
                 os.remove(key_file)
             return False, f"LUKS format error: {err or out}"
 
-        # Open vault
+
         log(f"Opening encrypted mapper {mapper_name}...", "EXEC")
         rc, out, err = run_privileged("usb-luks-open", target_dev, mapper_name, key_file)
         if rc != 0:
             return False, f"Failed opening mapper: {err or out}"
 
-        # Format filesystem
+
         mapped_dev = f"/dev/mapper/{mapper_name}"
         log(f"Formatting {mapped_dev} as EXT4 ({vault_label})...", "EXEC")
         rc, out, err = run_privileged("usb-format", mapped_dev, "ext4", vault_label)
@@ -163,14 +152,14 @@ class USBArmory:
             run_privileged("usb-luks-close", mapper_name)
             return False, f"Filesystem format error: {err or out}"
 
-        # Mount vault
+
         user_name = os.getenv("USER") or "user"
         mount_dir = f"/media/{user_name}/{vault_label}"
         rc, out, err = run_privileged("usb-mount", mapped_dev, mount_dir, "ext4")
         if rc != 0:
             log(f"Auto-mount notice: {err or out}", "WARN")
 
-        # Save to registry
+
         registry = cls.load_registry()
         registry.append({
             "vault_id": vault_id,
@@ -188,7 +177,6 @@ class USBArmory:
 
     @classmethod
     def unlock_vault(cls, vault_id: str) -> Tuple[bool, str]:
-        """Unlocks registered vault using stored app keys."""
         registry = cls.load_registry()
         v = next((item for item in registry if item.get("vault_id") == vault_id), None)
         if not v:
@@ -216,7 +204,6 @@ class USBArmory:
 
     @classmethod
     def lock_vault(cls, vault_id: str) -> Tuple[bool, str]:
-        """Locks and unmounts encrypted vault."""
         registry = cls.load_registry()
         v = next((item for item in registry if item.get("vault_id") == vault_id), None)
         if not v:
@@ -236,7 +223,6 @@ class USBArmory:
 
     @classmethod
     def format_partition(cls, device: str, fstype: str, label: str) -> Tuple[bool, str]:
-        """Formats drive to EXT4, BTRFS, FAT32, or EXFAT."""
         rc, out, err = run_privileged("usb-format", device, fstype, label)
         if rc == 0:
             log(f"Device {device} formatted as {fstype} ({label})", "OK")
@@ -245,7 +231,6 @@ class USBArmory:
 
     @classmethod
     def wipe_drive(cls, device: str) -> Tuple[bool, str]:
-        """Zero-wipes master boot record and initial gigabyte of storage device."""
         rc, out, err = run_privileged("usb-wipe-zero", device)
         if rc == 0:
             log(f"Device {device} wiped clean.", "OK")
@@ -254,7 +239,6 @@ class USBArmory:
 
     @classmethod
     def flash_iso(cls, iso_path: str, device: str) -> Tuple[bool, str]:
-        """Flashes raw ISO directly to target device."""
         if not os.path.exists(iso_path):
             return False, f"ISO file not found: {iso_path}"
         log(f"Writing ISO {iso_path} to {device}...", "EXEC")
@@ -266,7 +250,6 @@ class USBArmory:
 
     @classmethod
     def backup_system_to_usb(cls, target_dir: str, mode: str = "home") -> Tuple[bool, str]:
-        """Creates compressed backup of user session or full OS to target USB mount."""
         user_name = os.getenv("USER") or "user"
         log(f"Creating system backup ({mode}) to {target_dir}...", "EXEC")
         rc, out, err = run_privileged("system-backup-usb", target_dir, mode, user_name)
@@ -277,7 +260,6 @@ class USBArmory:
 
     @classmethod
     def trim_drives(cls) -> Tuple[bool, str]:
-        """Discards unallocated blocks across all SSDs, NVMe, and crypt mappings."""
         log("Running deep SSD TRIM and discarded block purge...", "EXEC")
         rc, out, err = run_privileged("drive-trim")
         if rc == 0:

@@ -4,29 +4,21 @@ from typing import Tuple, List, Dict, Any
 from cyberbreak.core.executor import run_privileged, run_sync, log
 
 class HardwareManager:
-    """
-    BadUSB defense, USB port lockdown, device authorization, webcam, and microphone hardware interlocks.
-    Engineered by lilami only.
-    """
 
     @staticmethod
     def get_connected_usb_devices() -> List[Dict[str, Any]]:
-        """
-        Enumerates all physical and logical USB devices connected to system controllers.
-        Extracts Bus, DevNum, Vendor:Product ID, Manufacturer, Product Name, and Authorization status.
-        """
         devices: List[Dict[str, Any]] = []
         base_dir = "/sys/bus/usb/devices"
         if not os.path.exists(base_dir):
             return devices
 
         for entry in sorted(os.listdir(base_dir)):
-            # Device entries match digits and dashes (e.g. 1-1, 1-1.2, usb1, usb2)
+
             dev_path = os.path.join(base_dir, entry)
             if not os.path.isdir(dev_path):
                 continue
 
-            # Check if it has an idVendor or is a root hub
+
             vendor_path = os.path.join(dev_path, "idVendor")
             product_path = os.path.join(dev_path, "idProduct")
             auth_path = os.path.join(dev_path, "authorized")
@@ -46,7 +38,7 @@ class HardwareManager:
             is_root_hub = entry.startswith("usb")
             is_authorized = (auth_val == "1")
 
-            # Determine device class
+
             dev_type = HardwareManager._determine_device_type(dev_path, is_root_hub, product_name)
 
             devices.append({
@@ -68,7 +60,6 @@ class HardwareManager:
 
     @staticmethod
     def _read_sysfs(path: str, default: str = "") -> str:
-        """Safely reads a single line from a sysfs node."""
         if os.path.exists(path):
             try:
                 with open(path, "r") as f:
@@ -79,7 +70,6 @@ class HardwareManager:
 
     @staticmethod
     def _determine_device_type(dev_path: str, is_root: bool, prod_name: str) -> str:
-        """Classifies USB device role based on interface descriptors and name."""
         if is_root:
             return "ROOT HUB"
 
@@ -95,7 +85,7 @@ class HardwareManager:
         if any(w in name_lower for w in ("wireless", "wifi", "802.11", "ethernet", "lan", "bluetooth")):
             return "NETWORK / COMM"
 
-        # Check sub-interfaces for bInterfaceClass (08 = Mass Storage, 03 = HID)
+
         for iface_dir in glob.glob(os.path.join(dev_path, "*:*")):
             class_path = os.path.join(iface_dir, "bInterfaceClass")
             if os.path.exists(class_path):
@@ -113,12 +103,6 @@ class HardwareManager:
 
     @staticmethod
     def set_usb_lockdown(enable: bool) -> Tuple[bool, str]:
-        """
-        Deep USB port lockdown:
-        Sets authorized_default = 0 on all root hubs, immediately revokes authorization
-        on all connected mass storage/peripherals, unbinds storage drivers, and blocks usb-storage.
-        Engineered by lilami only.
-        """
         action = "ENABLING BadUSB defense & deep port lockdown" if enable else "DISABLING USB port lockdown"
         log(action, "HW")
         code, out, err = run_privileged("usb-lockdown", "1" if enable else "0")
@@ -132,7 +116,6 @@ class HardwareManager:
 
     @staticmethod
     def set_device_authorization(dev_id: str, authorize: bool) -> Tuple[bool, str]:
-        """Toggles authorization for an individual USB device port via sysfs."""
         log(f"Setting authorization for USB device {dev_id}: {'AUTHORIZE' if authorize else 'BLOCK'}", "HW")
         code, out, err = run_privileged("usb-device-auth", dev_id, "1" if authorize else "0")
         if code == 0:
@@ -145,7 +128,6 @@ class HardwareManager:
 
     @staticmethod
     def set_usb_storage_lock(block: bool) -> Tuple[bool, str]:
-        """Unbinds usb-storage / uas drivers and installs modprobe block."""
         log(f"Setting USB mass storage driver lock: {'BLOCK' if block else 'ALLOW'}", "HW")
         code, out, err = run_privileged("usb-storage-block", "1" if block else "0")
         if code == 0:
@@ -158,7 +140,6 @@ class HardwareManager:
 
     @staticmethod
     def set_webcam_state(disabled: bool) -> Tuple[bool, str]:
-        """Disables or enables webcam hardware driver (uvcvideo) via privileged helper."""
         log(f"Setting webcam driver state: {'DISABLE' if disabled else 'ENABLE'}", "HW")
         code, out, err = run_privileged("webcam-toggle", "1" if disabled else "0")
         if code == 0:
@@ -171,7 +152,6 @@ class HardwareManager:
 
     @staticmethod
     def set_microphone_mute(mute: bool) -> Tuple[bool, str]:
-        """Toggles hardware microphone capture state in user desktop audio session."""
         log(f"Setting microphone hardware capture: {'MUTED' if mute else 'ACTIVE'}", "HW")
         if mute:
             run_sync("pactl set-source-mute @DEFAULT_SOURCE@ 1")
@@ -188,7 +168,6 @@ class HardwareManager:
 
     @staticmethod
     def set_bluetooth_state(disabled: bool) -> Tuple[bool, str]:
-        """Disables or enables Bluetooth radios via rfkill."""
         log(f"Setting Bluetooth radio state: {'BLOCK' if disabled else 'UNBLOCK'}", "HW")
         if disabled:
             run_sync("rfkill block bluetooth")

@@ -25,7 +25,7 @@ except ImportError:
         return DummySignal()
 
 class LogEmitter(QObject):
-    log_message = pyqtSignal(str, str)  # (level, message)
+    log_message = pyqtSignal(str, str)
 
 GLOBAL_LOGGER = LogEmitter()
 
@@ -34,7 +34,7 @@ def log(message: str, level: str = "INFO"):
     GLOBAL_LOGGER.log_message.emit(level, f"[{timestamp}] [{level}] {message}")
 
 class CommandWorker(QThread):
-    finished_signal = pyqtSignal(int, str, str)  # (exit_code, stdout, stderr)
+    finished_signal = pyqtSignal(int, str, str)
 
     def __init__(self, cmd: str, shell: bool = True):
         super().__init__()
@@ -67,7 +67,6 @@ class CommandWorker(QThread):
             self.finished_signal.emit(-1, "", str(e))
 
 def run_sync(cmd: str, shell: bool = True) -> Tuple[int, str, str]:
-    """Synchronous execution helper for instant queries."""
     try:
         res = subprocess.run(
             cmd,
@@ -81,7 +80,6 @@ def run_sync(cmd: str, shell: bool = True) -> Tuple[int, str, str]:
         return -1, "", str(e)
 
 def get_helper_path() -> Optional[str]:
-    """Finds the installed or local privileged helper executable."""
     candidates = [
         "/usr/local/lib/cyberbreak/cyberbreak-helper",
         "/usr/libexec/cyberbreak/cyberbreak-helper",
@@ -94,11 +92,6 @@ def get_helper_path() -> Optional[str]:
     return None
 
 def run_privileged(action: str, *args: str) -> Tuple[int, str, str]:
-    """
-    Executes a narrowly scoped privileged action via the root helper.
-    Seamlessly works for restricted Kicksecure 'user' accounts via 
-    pre-configured sudoers/polkit helper authorizations.
-    """
     helper = get_helper_path()
     cmd_args = [action] + [str(a) for a in args]
 
@@ -111,14 +104,14 @@ def run_privileged(action: str, *args: str) -> Tuple[int, str, str]:
         log(err_msg, "ERR")
         return -1, "", err_msg
 
-    # Ensure executable
+
     if not os.access(helper, os.X_OK):
         try:
             os.chmod(helper, 0o755)
         except Exception:
             pass
 
-    # 1. If current process is already root
+
     if hasattr(os, "geteuid") and os.geteuid() == 0:
         log(f"Executing privileged action (direct root): {action}", "EXEC")
         try:
@@ -131,7 +124,7 @@ def run_privileged(action: str, *args: str) -> Tuple[int, str, str]:
         except Exception as e:
             return -1, "", str(e)
 
-    # 2. If unprivileged user: attempt passwordless sudo via configured cyberbreak group
+
     log(f"Dispatching privileged action '{action}' via helper", "EXEC")
     try:
         res = subprocess.run(["sudo", "-n", helper] + cmd_args, capture_output=True, text=True, timeout=60)
@@ -140,7 +133,7 @@ def run_privileged(action: str, *args: str) -> Tuple[int, str, str]:
                 log(f"Privileged OK: {res.stdout.strip()[:200]}", "OK")
             return 0, res.stdout.strip(), res.stderr.strip()
 
-        # If sudo -n failed because password required or user not in cyberbreak group, fallback to pkexec
+
         err_lower = (res.stderr or "").lower()
         if "password" in err_lower or "not in sudoers" in err_lower or res.returncode in (1, 13):
             log("Sudo -n not configured; attempting Polkit pkexec escalation", "WARN")
@@ -154,7 +147,7 @@ def run_privileged(action: str, *args: str) -> Tuple[int, str, str]:
         return res.returncode, res.stdout.strip(), res.stderr.strip()
 
     except FileNotFoundError:
-        # sudo not installed, attempt pkexec directly
+
         try:
             pk_res = subprocess.run(["pkexec", helper] + cmd_args, capture_output=True, text=True, timeout=60)
             return pk_res.returncode, pk_res.stdout.strip(), pk_res.stderr.strip()

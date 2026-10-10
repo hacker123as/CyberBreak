@@ -1,174 +1,142 @@
-from PyQt6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame, QGridLayout
-)
+from PyQt6.QtWidgets import QAbstractItemView, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QFrame, QGridLayout
+from PyQt6.QtGui import QColor
 from PyQt6.QtCore import Qt
 from cyberbreak.core.desktop_integrator import DesktopIntegrator
 from cyberbreak.ui.widgets.status_card import StatusCard
+from cyberbreak.ui.widgets.glass import GlassFrame, icon
 
 class DesktopPage(QWidget):
-    """Linux FreeDesktop launcher and system application grid manager."""
 
     def __init__(self, parent=None):
         super().__init__(parent)
-
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
-
-        # Header
+        layout.setContentsMargins(4, 8, 4, 24)
+        layout.setSpacing(22)
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("NATIVE DESKTOP & APP GRID INTEGRATION // By lilami only")
-        title.setObjectName("HeaderTitle")
-        subtitle = QLabel("Deploy CyberBreak into Linux application menus, desktop launchers, and system autostart")
-        subtitle.setObjectName("HeaderSubtitle")
+        title_box.setSpacing(8)
+        title = QLabel('Desktop integration')
+        title.setObjectName('HeaderTitle')
+        title.setWordWrap(True)
+        subtitle = QLabel('Keep CyberBreak close with desktop shortcuts, application menus, and login launch.')
+        subtitle.setObjectName('HeaderSubtitle')
+        subtitle.setWordWrap(True)
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
-        header.addLayout(title_box)
-
+        header.addLayout(title_box, 1)
         layout.addLayout(header)
-
-        # Status Grid
         grid = QGridLayout()
         grid.setSpacing(16)
-
-        self.desk_card = StatusCard("DESKTOP LAUNCHER", "Checking...", "~/Desktop/cyberbreak.desktop", "", "WARN")
+        self.desk_card = StatusCard('Desktop launcher', 'Checking…', '~/Desktop/cyberbreak.desktop', '', 'WARN')
         grid.addWidget(self.desk_card, 0, 0)
-
-        self.grid_card = StatusCard("APPLICATION GRID", "Checking...", "/usr/share/applications/ entry", "", "WARN")
+        self.grid_card = StatusCard('Application grid', 'Checking…', '/usr/share/applications/ entry', '', 'WARN')
         grid.addWidget(self.grid_card, 0, 1)
-
-        self.auto_card = StatusCard("SYSTEM AUTOSTART", "Checking...", "~/.config/autostart/ entry", "", "WARN")
+        self.auto_card = StatusCard('System autostart', 'Checking…', '~/.config/autostart/ entry', '', 'WARN')
         grid.addWidget(self.auto_card, 1, 0)
-
         layout.addLayout(grid)
-
-        # Management Frame
-        frame = QFrame()
-        frame.setObjectName("Card")
+        frame = GlassFrame()
+        frame.setObjectName('GlassCard')
         f_layout = QVBoxLayout(frame)
-        f_layout.setContentsMargins(18, 18, 18, 18)
+        f_layout.setContentsMargins(22, 22, 22, 22)
         f_layout.setSpacing(14)
-
-        f_title = QLabel("DESKTOP INTEGRATION ACTIONS:")
-        f_title.setObjectName("CardTitle")
+        f_title = QLabel('Launch preferences')
+        f_title.setObjectName('CardTitle')
         f_layout.addWidget(f_title)
-
-        # Add to Desktop
         d_row = QHBoxLayout()
         d_info = QVBoxLayout()
-        d_lbl = QLabel("Place Shortcut on User Desktop")
-        d_lbl.setStyleSheet("font-weight: 600; color: #ffffff;")
-        d_sub = QLabel("Generates executable, trusted ~/Desktop/cyberbreak.desktop with native icon.")
-        d_sub.setObjectName("HeaderSubtitle")
+        d_lbl = QLabel('Desktop shortcut')
+        d_lbl.setObjectName('CardTitle')
+        d_sub = QLabel('Create a trusted shortcut on your desktop.')
+        d_sub.setObjectName('HeaderSubtitle')
+        d_sub.setWordWrap(True)
         d_info.addWidget(d_lbl)
         d_info.addWidget(d_sub)
         d_row.addLayout(d_info)
         d_row.addStretch()
-
-        d_btn = QPushButton("ADD TO DESKTOP")
-        d_btn.setObjectName("AccentButton")
+        d_btn = QPushButton('Add shortcut')
+        d_btn.setIcon(icon('folder'))
+        d_btn.setObjectName('AccentButton')
         d_btn.clicked.connect(self.on_add_desktop)
         d_row.addWidget(d_btn)
         f_layout.addLayout(d_row)
-
         f_layout.addWidget(self.create_divider())
-
-        # Add to App Grid
         g_row = QHBoxLayout()
         g_info = QVBoxLayout()
-        g_lbl = QLabel("Register into System Application Grid")
-        g_lbl.setStyleSheet("font-weight: 600; color: #ffffff;")
-        g_sub = QLabel("Installs into Whisker Menu, Kicksecure Application Finder, GNOME Dash, and KDE Kickoff.")
-        g_sub.setObjectName("HeaderSubtitle")
+        g_lbl = QLabel('Application menu')
+        g_lbl.setObjectName('CardTitle')
+        g_sub = QLabel('Add CyberBreak to the application menu for your desktop environment.')
+        g_sub.setObjectName('HeaderSubtitle')
+        g_sub.setWordWrap(True)
         g_info.addWidget(g_lbl)
         g_info.addWidget(g_sub)
         g_row.addLayout(g_info)
         g_row.addStretch()
-
-        g_btn = QPushButton("REGISTER IN APP GRID")
+        g_btn = QPushButton('Register application')
         g_btn.clicked.connect(self.on_add_grid)
         g_row.addWidget(g_btn)
         f_layout.addLayout(g_row)
-
         f_layout.addWidget(self.create_divider())
-
-        # Toggle Autostart
         a_row = QHBoxLayout()
         a_info = QVBoxLayout()
-        a_lbl = QLabel("System Boot Autostart")
-        a_lbl.setStyleSheet("font-weight: 600; color: #ffffff;")
-        a_sub = QLabel("Automatically launch CyberBreak protection suite upon user desktop login.")
-        a_sub.setObjectName("HeaderSubtitle")
+        a_lbl = QLabel('Launch at login')
+        a_lbl.setObjectName('CardTitle')
+        a_sub = QLabel('Start CyberBreak when you sign in to your desktop.')
+        a_sub.setObjectName('HeaderSubtitle')
+        a_sub.setWordWrap(True)
         a_info.addWidget(a_lbl)
         a_info.addWidget(a_sub)
         a_row.addLayout(a_info)
         a_row.addStretch()
-
-        self.auto_btn = QPushButton("ENABLE AUTOSTART")
+        self.auto_btn = QPushButton('Enable autostart')
         self.auto_btn.clicked.connect(self.on_toggle_autostart)
         a_row.addWidget(self.auto_btn)
         f_layout.addLayout(a_row)
-
         layout.addWidget(frame)
-
-        # Maintenance Note Frame
-        maint_frame = QFrame()
-        maint_frame.setObjectName("Card")
+        maint_frame = GlassFrame()
+        maint_frame.setObjectName('GlassCard')
         m_layout = QVBoxLayout(maint_frame)
-        m_layout.setContentsMargins(18, 18, 18, 18)
+        m_layout.setContentsMargins(22, 22, 22, 22)
         m_layout.setSpacing(10)
-
-        m_title = QLabel("ADMINISTRATIVE MAINTENANCE (SYSMAINT):")
-        m_title.setObjectName("CardTitle")
-        m_title.setStyleSheet("color: #00ff66; font-weight: 700;")
+        m_title = QLabel('System maintenance')
+        m_title.setObjectName('CardTitle')
         m_layout.addWidget(m_title)
-
-        m_desc = QLabel(
-            "In accordance with Kicksecure's security architecture, system-wide packages, kernel policies, "
-            "and helper authorizations are maintained through the administrative 'sysmaint' account.\n"
-            "To perform system updates, reconfigure group authorizations, or reinstall security policies, run:\n"
-            "  $ sudo bash /opt/cyberbreak/scripts/install.sh"
-        )
-        m_desc.setObjectName("HeaderSubtitle")
-        m_desc.setStyleSheet("color: #a0a0ab; line-height: 1.4;")
+        m_desc = QLabel('Use the administrative sysmaint account to update system packages, kernel policies, and helper permissions.\nInstaller: sudo bash /opt/cyberbreak/scripts/install.sh')
+        m_desc.setObjectName('HeaderSubtitle')
+        m_desc.setWordWrap(True)
+        m_desc.setWordWrap(True)
         m_layout.addWidget(m_desc)
-
         layout.addWidget(maint_frame)
         layout.addStretch()
-
         self.refresh_status()
 
     def create_divider(self):
         line = QFrame()
         line.setFrameShape(QFrame.Shape.HLine)
-        line.setStyleSheet("color: #242429;")
+        line.setObjectName('Divider')
         return line
 
     def refresh_status(self):
         st = DesktopIntegrator.get_status()
-        if st["on_desktop"]:
-            self.desk_card.set_value("Installed")
-            self.desk_card.set_pill("ACTIVE", "SECURE")
+        if st['on_desktop']:
+            self.desk_card.set_value('Installed')
+            self.desk_card.set_pill('Active', 'SECURE')
         else:
-            self.desk_card.set_value("Not Found")
-            self.desk_card.set_pill("MISSING", "WARN")
-
-        if st["in_app_grid"]:
-            self.grid_card.set_value("Registered")
-            self.grid_card.set_pill("ACTIVE", "SECURE")
+            self.desk_card.set_value('Not Found')
+            self.desk_card.set_pill('Missing', 'WARN')
+        if st['in_app_grid']:
+            self.grid_card.set_value('Registered')
+            self.grid_card.set_pill('Active', 'SECURE')
         else:
-            self.grid_card.set_value("Not Found")
-            self.grid_card.set_pill("MISSING", "WARN")
-
-        if st["autostart"]:
-            self.auto_card.set_value("Enabled")
-            self.auto_card.set_pill("ENABLED", "SECURE")
-            self.auto_btn.setText("DISABLE AUTOSTART")
+            self.grid_card.set_value('Not Found')
+            self.grid_card.set_pill('Missing', 'WARN')
+        if st['autostart']:
+            self.auto_card.set_value('Enabled')
+            self.auto_card.set_pill('Enabled', 'SECURE')
+            self.auto_btn.setText('Disable autostart')
         else:
-            self.auto_card.set_value("Disabled")
-            self.auto_card.set_pill("OFF", "WARN")
-            self.auto_btn.setText("ENABLE AUTOSTART")
+            self.auto_card.set_value('Disabled')
+            self.auto_card.set_pill('Off', 'WARN')
+            self.auto_btn.setText('Enable autostart')
 
     def on_add_desktop(self):
         DesktopIntegrator.install_to_desktop()
@@ -180,5 +148,5 @@ class DesktopPage(QWidget):
 
     def on_toggle_autostart(self):
         st = DesktopIntegrator.get_status()
-        DesktopIntegrator.toggle_autostart(not st["autostart"])
+        DesktopIntegrator.toggle_autostart(not st['autostart'])
         self.refresh_status()

@@ -9,17 +9,15 @@ GITHUB_API_URL = "https://api.github.com/repos/hacker123as/CyberBreak/commits/ma
 REPO_URL = "https://github.com/hacker123as/CyberBreak.git"
 
 class Updater:
-    """Manages application updates, remote commit tracking, and synchronization."""
 
     @staticmethod
     def get_local_commit() -> str:
-        """Retrieves currently installed git commit or fallback version."""
         repo_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         if os.path.exists(os.path.join(repo_dir, ".git")):
             rc, out, _ = run_sync(f"git -C '{repo_dir}' rev-parse --short HEAD")
             if rc == 0 and out:
                 return out.strip()
-        # Fallback check /opt/cyberbreak/.git or release file
+
         if os.path.exists("/opt/cyberbreak/.git"):
             rc, out, _ = run_sync("git -C /opt/cyberbreak rev-parse --short HEAD")
             if rc == 0 and out:
@@ -28,7 +26,6 @@ class Updater:
 
     @classmethod
     def check_for_updates(cls) -> Dict[str, Any]:
-        """Queries GitHub API for latest commit and compares to local installation."""
         result = {
             "status": "CHECKING",
             "update_available": False,
@@ -65,7 +62,7 @@ class Updater:
                 log(f"Update check finished: Local={result['local_hash']} Remote={result['remote_hash']}", "OK")
         except Exception as e:
             log(f"GitHub API update probe failed: {e}. Attempting git ls-remote...", "WARN")
-            # Fallback to git ls-remote
+
             rc, out, _ = run_sync(f"git ls-remote {REPO_URL} HEAD")
             if rc == 0 and out:
                 remote_sha = out.split()[0][:7]
@@ -83,7 +80,6 @@ class Updater:
 
     @classmethod
     def apply_update(cls) -> Tuple[bool, str]:
-        """Executes repository synchronization or provides instructions for sysmaint."""
         repo_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         if os.path.exists(os.path.join(repo_dir, ".git")) and os.access(repo_dir, os.W_OK):
             rc, out, err = run_sync(f"git -C '{repo_dir}' pull origin main")
@@ -93,7 +89,7 @@ class Updater:
             else:
                 return False, f"Git pull error: {err or out}"
 
-        # If installed system-wide in /opt/cyberbreak
+
         cmd_guide = (
             "CyberBreak is installed system-wide in /opt/cyberbreak.\n\n"
             "To apply this update on Kicksecure, run in your 'sysmaint' terminal:\n"

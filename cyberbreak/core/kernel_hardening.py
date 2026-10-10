@@ -2,7 +2,6 @@ from typing import Dict, Any, Tuple
 from cyberbreak.core.executor import run_privileged, run_sync, log
 
 class KernelHardening:
-    """Linux Kernel sysctl hardening and AppArmor security matrix."""
 
     HARDENED_SYSCTL = {
         "kernel.yama.ptrace_scope": "3",
@@ -17,7 +16,6 @@ class KernelHardening:
 
     @staticmethod
     def audit_sysctl() -> Dict[str, Dict[str, str]]:
-        """Audits current kernel sysctl values against security recommendations."""
         results = {}
         for key, target in KernelHardening.HARDENED_SYSCTL.items():
             code, out, err = run_sync(f"sysctl -n {key}")
@@ -31,7 +29,6 @@ class KernelHardening:
 
     @staticmethod
     def apply_sysctl_hardening() -> Tuple[bool, str]:
-        """Applies hardened sysctl configuration via privileged helper."""
         log("Enforcing Kicksecure kernel sysctl parameters", "KERN")
         code, out, err = run_privileged("sysctl-harden")
         if code == 0:
@@ -43,7 +40,6 @@ class KernelHardening:
 
     @staticmethod
     def get_apparmor_status() -> Dict[str, Any]:
-        """Parses active AppArmor profiles, using privileged helper if unprivileged user lacks direct aa-status permissions."""
         data = {"profiles": 0, "enforce": 0, "complain": 0, "raw": ""}
         code, out, err = run_sync("aa-status --json")
         if code == 0 and out:
@@ -55,7 +51,7 @@ class KernelHardening:
             data["raw"] = out2[:300]
             return data
 
-        # Fallback to privileged helper
+
         code3, out3, err3 = run_privileged("apparmor-status")
         if code3 == 0 and out3:
             data["raw"] = out3[:300]
@@ -65,7 +61,6 @@ class KernelHardening:
 
     @staticmethod
     def enforce_all_apparmor() -> Tuple[bool, str]:
-        """Enforces AppArmor profiles via privileged helper."""
         log("Enforcing all AppArmor profiles", "SEC")
         code, out, err = run_privileged("apparmor-enforce")
         if code == 0:

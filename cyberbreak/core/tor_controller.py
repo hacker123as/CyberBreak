@@ -9,11 +9,6 @@ from typing import Tuple, List, Dict, Any, Optional
 from cyberbreak.core.executor import run_sync, run_privileged, log
 
 class TorController:
-    """
-    Tor control port interface, circuit inspector, and decoy cover traffic engine.
-    Supports Unix domain sockets, TCP sockets, and Cookie authentication for Kicksecure.
-    Engineered by lilami only.
-    """
 
     DEFAULT_SOCKETS = ["/run/tor/control", "/var/run/tor/control"]
     DEFAULT_PORTS = [9051, 9151]
@@ -26,7 +21,6 @@ class TorController:
 
     @staticmethod
     def is_tor_running() -> bool:
-        """Checks if tor daemon service or binary process is active."""
         code, out, _ = run_sync("systemctl is-active tor")
         if code == 0 and "active" in out:
             return True
@@ -35,7 +29,6 @@ class TorController:
 
     @staticmethod
     def _read_auth_cookie() -> Optional[str]:
-        """Reads Tor Control authentication cookie and returns hex string."""
         for path in TorController.COOKIE_PATHS:
             if os.path.exists(path):
                 try:
@@ -44,13 +37,13 @@ class TorController:
                         if len(data) == 32:
                             return data.hex()
                 except PermissionError:
-                    # Request via privileged helper if non-root user cannot read /run/tor/control.authcookie
+
                     code, out, _ = run_privileged("tor-read-cookie")
                     if code == 0 and len(out.strip()) == 64:
                         return out.strip()
                 except Exception:
                     pass
-        # Also try globbing tor-instances
+
         for path in glob.glob("/run/tor-instances/*/control.authcookie"):
             try:
                 with open(path, "rb") as f:
@@ -63,8 +56,7 @@ class TorController:
 
     @staticmethod
     def _open_control_socket() -> Optional[socket.socket]:
-        """Connects to Tor control socket via Unix socket or TCP port."""
-        # 1. Try Unix domain sockets
+
         for u_sock in TorController.DEFAULT_SOCKETS:
             if os.path.exists(u_sock):
                 try:
@@ -78,7 +70,7 @@ class TorController:
                     except Exception:
                         pass
 
-        # 2. Try TCP ports
+
         for port in TorController.DEFAULT_PORTS:
             try:
                 s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -95,16 +87,15 @@ class TorController:
 
     @staticmethod
     def _authenticate(sock: socket.socket, password: str = "") -> bool:
-        """Executes Tor authentication handshake supporting NULL, Password, and Cookie."""
         try:
-            # 1. Try blank or provided password
+
             cmd = f'AUTHENTICATE "{password}"\r\n' if password else 'AUTHENTICATE ""\r\n'
             sock.sendall(cmd.encode())
             resp = sock.recv(1024).decode()
             if resp.startswith("250"):
                 return True
 
-            # 2. Try Cookie authentication
+
             cookie_hex = TorController._read_auth_cookie()
             if cookie_hex:
                 sock.sendall(f"AUTHENTICATE {cookie_hex}\r\n".encode())
@@ -112,7 +103,7 @@ class TorController:
                 if resp.startswith("250"):
                     return True
 
-            # 3. Try PROTOCOLINFO to discover cookie path
+
             sock.sendall(b"PROTOCOLINFO 1\r\n")
             p_info = sock.recv(2048).decode()
             cookie_match = re.search(r'COOKIEFILE="([^"]+)"', p_info)
@@ -132,7 +123,6 @@ class TorController:
 
     @staticmethod
     def signal_new_identity(password: str = "") -> Tuple[bool, str]:
-        """Sends SIGNAL NEWNYM to Tor Control Port to force circuit renewal."""
         log("Sending SIGNAL NEWNYM to Tor control daemon", "TOR")
         sock = TorController._open_control_socket()
         if not sock:
@@ -160,7 +150,6 @@ class TorController:
 
     @staticmethod
     def get_tor_info() -> Dict[str, Any]:
-        """Queries Tor version, connection status, and circuit counts."""
         info = {
             "running": TorController.is_tor_running(),
             "version": "Tor N/A",
@@ -178,20 +167,20 @@ class TorController:
                 if not TorController._authenticate(sock):
                     return info
 
-                # Version
+
                 sock.sendall(b"GETINFO version\r\n")
                 v_resp = sock.recv(1024).decode()
                 for line in v_resp.split("\n"):
                     if line.startswith("250-version="):
                         info["version"] = line.split("=", 1)[1].strip()
 
-                # Established
+
                 sock.sendall(b"GETINFO status/circuit-established\r\n")
                 est_resp = sock.recv(1024).decode()
                 if "status/circuit-established=1" in est_resp:
                     info["established"] = True
 
-                # Active Circuits
+
                 sock.sendall(b"GETINFO circuit-status\r\n")
                 c_resp = ""
                 while True:
@@ -210,7 +199,6 @@ class TorController:
 
     @staticmethod
     def _parse_circuits(raw: str) -> List[Dict[str, str]]:
-        """Parses GETINFO circuit-status output into structured relay hops."""
         circuits = []
         lines = raw.strip().split("\n")
         for line in lines:
@@ -228,7 +216,7 @@ class TorController:
                     if p.startswith("PURPOSE="):
                         purpose = p.split("=", 1)[1]
 
-                # Parse hops (Guard, Middle, Exit)
+
                 hops = path_str.split(",") if path_str else []
                 guard = TorController._clean_node_name(hops[0]) if len(hops) > 0 else "---"
                 middle = TorController._clean_node_name(hops[1]) if len(hops) > 1 else "---"
@@ -250,7 +238,6 @@ class TorController:
 
     @staticmethod
     def _clean_node_name(raw: str) -> str:
-        """Converts node string $fingerprint~nickname to readable format."""
         if not raw:
             return "---"
         if "~" in raw:
@@ -261,11 +248,6 @@ class TorController:
 
 
 class DecoyTrafficGenerator(threading.Thread):
-    """
-    Generates synthetic background cover traffic to disrupt ISP timing and packet-size correlation.
-    Dispatches randomized requests to public knowledge bases and repositories.
-    Engineered by lilami only.
-    """
 
     DECOY_TARGETS = [
         "https://www.wikipedia.org",

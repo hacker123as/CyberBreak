@@ -6,7 +6,6 @@ from typing import Dict, Any, List
 from cyberbreak.core.executor import log
 
 class NetworkAuditor:
-    """Real socket and network probing engine with zero mock data."""
 
     ENDPOINTS = [
         "https://api.protonvpn.ch/vpn/location",
@@ -17,7 +16,6 @@ class NetworkAuditor:
 
     @staticmethod
     def check_proton_vpn() -> Dict[str, Any]:
-        """Probes Proton VPN official location API and local interface state."""
         proton_status = {
             "is_connected": False,
             "server": "None",
@@ -28,7 +26,7 @@ class NetworkAuditor:
             "interface": "None"
         }
 
-        # 1. Query Proton VPN official API
+
         proton_apis = [
             "https://api.protonvpn.ch/vpn/location",
             "https://api.protonmail.ch/vpn/location"
@@ -53,7 +51,7 @@ class NetworkAuditor:
                     proton_status["country"] = country
                     proton_status["city"] = city
 
-                    # If ISP contains Proton or if API returns successfully from Proton network
+
                     if "proton" in isp.lower() or "proton" in parsed.get("Organization", "").lower():
                         proton_status["is_connected"] = True
                         proton_status["server"] = f"ProtonVPN ({country})"
@@ -61,7 +59,7 @@ class NetworkAuditor:
             except Exception as e:
                 log(f"Proton API query {api_url} check: {e}", "WARN")
 
-        # 2. Check local network interfaces for Proton adapters (proton0, pvpn*, wg-proton*)
+
         try:
             import os
             net_path = "/sys/class/net"
@@ -79,7 +77,6 @@ class NetworkAuditor:
 
     @staticmethod
     def get_external_identity() -> Dict[str, Any]:
-        """Queries external endpoints to discover public IP, ISP, city, state, and leak status."""
         data = {
             "ip": "Unknown",
             "isp": "Unknown",
@@ -157,7 +154,6 @@ class NetworkAuditor:
 
     @staticmethod
     def check_default_gateway() -> Dict[str, Any]:
-        """Audits /proc/net/route and default gateway interface."""
         result = {
             "interface": "Unknown",
             "gateway_ip": "Unknown",
@@ -170,10 +166,10 @@ class NetworkAuditor:
                 lines = f.readlines()
             for line in lines[1:]:
                 fields = line.strip().split()
-                if len(fields) >= 3 and fields[1] == "00000000":  # Default route
+                if len(fields) >= 3 and fields[1] == "00000000":
                     iface = fields[0]
                     result["interface"] = iface
-                    # Convert hex IP to quad-dotted
+
                     hex_gw = fields[2]
                     gw_parts = [str(int(hex_gw[i:i+2], 16)) for i in (6, 4, 2, 0)]
                     result["gateway_ip"] = ".".join(gw_parts)
@@ -195,7 +191,6 @@ class NetworkAuditor:
 
     @staticmethod
     def check_dns_resolvers() -> List[str]:
-        """Parses active nameservers from /etc/resolv.conf."""
         resolvers = []
         try:
             with open("/etc/resolv.conf", "r") as f:
@@ -212,13 +207,12 @@ class NetworkAuditor:
 
     @staticmethod
     def check_ipv6_exposure() -> Dict[str, Any]:
-        """Audits IPv6 socket bindability and global addresses in /proc/net/if_inet6."""
         status = {
             "ipv6_supported": False,
             "has_global_ipv6": False,
             "addresses": []
         }
-        # Check socket creation
+
         try:
             s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
             s.close()
@@ -226,21 +220,21 @@ class NetworkAuditor:
         except Exception:
             status["ipv6_supported"] = False
 
-        # Read /proc/net/if_inet6
+
         try:
             with open("/proc/net/if_inet6", "r") as f:
                 for line in f:
                     parts = line.strip().split()
                     if len(parts) >= 6:
                         raw_ip = parts[0]
-                        scope = int(parts[3], 16)  # Scope 0x00 is Global
+                        scope = int(parts[3], 16)
                         iface = parts[5]
                         if scope == 0x00 and iface != "lo":
                             status["has_global_ipv6"] = True
                             status["addresses"].append(f"{iface}:{raw_ip}")
             log(f"IPv6 check: Supported={status['ipv6_supported']}, GlobalLeak={status['has_global_ipv6']}", "NET")
         except FileNotFoundError:
-            # IPv6 disabled in kernel
+
             status["has_global_ipv6"] = False
         except Exception as e:
             log(f"Error inspecting IPv6: {e}", "WARN")

@@ -4,7 +4,6 @@ from typing import Tuple, Dict
 from cyberbreak.core.executor import run_sync, log
 
 class DesktopIntegrator:
-    """Linux FreeDesktop launcher, icon, and desktop environment integration engine."""
 
     DESKTOP_ENTRY_CONTENT = """[Desktop Entry]
 Name=CyberBreak
@@ -22,7 +21,6 @@ X-Kicksecure-Security-Level=Hardened
 
     @staticmethod
     def get_status() -> Dict[str, bool]:
-        """Checks if CyberBreak is integrated into desktop environments."""
         home = os.path.expanduser("~")
         desktop_file = os.path.join(home, "Desktop", "cyberbreak.desktop")
         app_grid_sys = "/usr/share/applications/cyberbreak.desktop"
@@ -37,7 +35,6 @@ X-Kicksecure-Security-Level=Hardened
 
     @staticmethod
     def install_to_desktop() -> Tuple[bool, str]:
-        """Creates trusted desktop icon in ~/Desktop for current user."""
         home = os.path.expanduser("~")
         desktop_dir = os.path.join(home, "Desktop")
         os.makedirs(desktop_dir, exist_ok=True)
@@ -47,7 +44,7 @@ X-Kicksecure-Security-Level=Hardened
             with open(desktop_file, "w") as f:
                 f.write(DesktopIntegrator.DESKTOP_ENTRY_CONTENT)
             os.chmod(desktop_file, 0o755)
-            # Mark trusted for GNOME/KDE/XFCE
+
             run_sync(f"gio set '{desktop_file}' metadata::trusted true")
             log(f"Desktop launcher created at {desktop_file}", "OK")
             return True, "Shortcut created on Desktop"
@@ -57,7 +54,6 @@ X-Kicksecure-Security-Level=Hardened
 
     @staticmethod
     def install_to_app_grid() -> Tuple[bool, str]:
-        """Installs launcher into system or user-level Application Grid."""
         is_root = hasattr(os, "geteuid") and os.geteuid() == 0
         if is_root:
             app_file = "/usr/share/applications/cyberbreak.desktop"
@@ -71,7 +67,7 @@ X-Kicksecure-Security-Level=Hardened
             except Exception as e:
                 log(f"Failed to write /usr/share/applications: {e}", "WARN")
 
-        # User-local applications
+
         user_apps = os.path.expanduser("~/.local/share/applications")
         os.makedirs(user_apps, exist_ok=True)
         local_file = os.path.join(user_apps, "cyberbreak.desktop")
@@ -88,7 +84,6 @@ X-Kicksecure-Security-Level=Hardened
 
     @staticmethod
     def toggle_autostart(enable: bool) -> Tuple[bool, str]:
-        """Enables or disables launch on system boot for current user."""
         home = os.path.expanduser("~")
         autostart_dir = os.path.join(home, ".config", "autostart")
         autostart_file = os.path.join(autostart_dir, "cyberbreak.desktop")

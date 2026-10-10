@@ -6,18 +6,16 @@ from typing import List, Dict, Tuple
 from cyberbreak.core.executor import run_sync, run_privileged, log
 
 class SpooferEngine:
-    """Hardware, MAC, Hostname, and Identity Spoofing Engine."""
 
     @staticmethod
     def get_network_interfaces() -> List[Dict[str, str]]:
-        """Enumerates active physical and wireless network adapters from sysfs."""
         interfaces = []
         net_dir = "/sys/class/net"
         if not os.path.exists(net_dir):
             return interfaces
 
         for iface in os.listdir(net_dir):
-            # Skip loopback and virtual virtualization interfaces
+
             if iface in ("lo",) or iface.startswith(("veth", "docker", "virbr", "br-")):
                 continue
 
@@ -50,7 +48,6 @@ class SpooferEngine:
 
     @staticmethod
     def randomize_mac(interface: str) -> Tuple[bool, str]:
-        """Brings interface down, randomizes MAC with macchanger, and brings it up via privileged helper."""
         log(f"Initiating MAC randomization sequence on {interface}", "SPOOF")
         code, out, err = run_privileged("mac-randomize", interface)
         if code == 0:
@@ -62,7 +59,6 @@ class SpooferEngine:
 
     @staticmethod
     def randomize_hostname() -> Tuple[bool, str]:
-        """Generates realistic OEM workstation hostname and applies via privileged helper."""
         prefixes = ["DESKTOP", "THINKPAD", "DEBIAN-WS", "WORKSTATION", "HOST"]
         suffix = secrets.token_hex(3).upper()
         new_name = f"{random.choice(prefixes)}-{suffix}"
@@ -78,7 +74,6 @@ class SpooferEngine:
 
     @staticmethod
     def reseed_machine_id() -> Tuple[bool, str]:
-        """Re-seeds /etc/machine-id with random entropy via privileged helper."""
         log("Re-seeding /etc/machine-id with random entropy", "SPOOF")
         code, out, err = run_privileged("machine-id-reseed")
         if code == 0:
@@ -90,7 +85,6 @@ class SpooferEngine:
 
     @staticmethod
     def set_utc_timezone() -> Tuple[bool, str]:
-        """Sets timezone to UTC to defeat browser javascript clock fingerprinting."""
         log("Enforcing UTC timezone", "SPOOF")
         code, out, err = run_privileged("timezone-utc")
         if code == 0:

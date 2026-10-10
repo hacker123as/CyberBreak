@@ -1,11 +1,4 @@
 #!/usr/bin/env python3
-"""
-CyberBreak Narrowly Scoped Privileged Helper
-Target: Kicksecure Linux / Debian / Arch
-Security: Only accepts predefined, strictly validated actions.
-Never executes arbitrary shell input. Owned by root:root, mode 0755.
-Engineered by lilami only.
-"""
 
 import sys
 import os
@@ -53,7 +46,6 @@ ALLOWED_ACTIONS = [
 ]
 
 def run_cmd(cmd: List[str]) -> Tuple[int, str, str]:
-    """Executes a command safely without shell=True."""
     try:
         res = subprocess.run(cmd, capture_output=True, text=True, timeout=30)
         return res.returncode, res.stdout.strip(), res.stderr.strip()
@@ -72,17 +64,17 @@ def action_mac_randomize(args: List[str]) -> int:
         print(f"ERROR: Interface '{iface}' does not exist", file=sys.stderr)
         return 4
 
-    # Down
+
     run_cmd(["ip", "link", "set", "dev", iface, "down"])
-    # Randomize
+
     code, out, err = run_cmd(["macchanger", "-r", iface])
     if code != 0:
-        # Fallback to manual locally-administered unicast MAC
+
         rand_mac = "02:%02x:%02x:%02x:%02x:%02x" % tuple(secrets.token_bytes(5))
         run_cmd(["ip", "link", "set", "dev", iface, "address", rand_mac])
-    # Up
+
     run_cmd(["ip", "link", "set", "dev", iface, "up"])
-    # NM reapply
+
     run_cmd(["nmcli", "device", "reapply", iface])
     print(f"OK: MAC randomized for {iface}")
     return 0
@@ -105,7 +97,7 @@ def action_hostname_randomize(args: List[str]) -> int:
             print(f"ERROR: Failed writing /etc/hostname: {e}", file=sys.stderr)
             return 4
 
-    # Sync /etc/hosts 127.0.1.1
+
     try:
         if os.path.exists("/etc/hosts"):
             with open("/etc/hosts", "r") as f:
@@ -222,7 +214,7 @@ def action_firewall_proton(args: List[str]) -> int:
         ["iptables", "-A", "INPUT", "-i", "wg+", "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"],
         ["iptables", "-A", "OUTPUT", "-o", "tun+", "-j", "ACCEPT"],
         ["iptables", "-A", "INPUT", "-i", "tun+", "-m", "conntrack", "--ctstate", "ESTABLISHED,RELATED", "-j", "ACCEPT"],
-        # WireGuard & OpenVPN ports
+
         ["iptables", "-A", "OUTPUT", "-p", "udp", "--dport", "51820", "-j", "ACCEPT"],
         ["iptables", "-A", "OUTPUT", "-p", "udp", "--dport", "1194", "-j", "ACCEPT"],
         ["iptables", "-A", "OUTPUT", "-p", "tcp", "--dport", "1194", "-j", "ACCEPT"],
@@ -271,7 +263,7 @@ def action_firewall_reset(args: List[str]) -> int:
     return 0
 
 def action_usb_lockdown(args: List[str]) -> int:
-    # 1. Block default authorization on all root controllers
+
     controllers = glob.glob("/sys/bus/usb/devices/usb*")
     for ctrl in controllers:
         auth_file = os.path.join(ctrl, "authorized_default")
@@ -282,7 +274,7 @@ def action_usb_lockdown(args: List[str]) -> int:
             except Exception:
                 pass
 
-    # 2. De-authorize connected non-root USB devices (excluding root hubs)
+
     devices = glob.glob("/sys/bus/usb/devices/[0-9]*")
     deauth_count = 0
     for dev in devices:
@@ -295,7 +287,7 @@ def action_usb_lockdown(args: List[str]) -> int:
             except Exception:
                 pass
 
-    # 3. Block usb-storage & uas kernel drivers
+
     try:
         os.makedirs("/etc/modprobe.d", exist_ok=True)
         with open("/etc/modprobe.d/cyberbreak-usb-lock.conf", "w") as f:
@@ -304,7 +296,7 @@ def action_usb_lockdown(args: List[str]) -> int:
         pass
     run_cmd(["modprobe", "-r", "uas", "usb-storage"])
 
-    # 4. USBGuard policy if present
+
     run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "block"])
 
     print(f"OK: Deep USB lockdown enabled ({len(controllers)} root controllers, {deauth_count} devices isolated)")
@@ -470,7 +462,7 @@ def action_port_lockdown_all(args: List[str]) -> int:
                         run_cmd(["kill", "-9", str(p_pid)])
                         killed_count += 1
 
-    # Block inbound NEW connections
+
     run_cmd(["iptables", "-I", "INPUT", "1", "-m", "conntrack", "--ctstate", "NEW", "-m", "tcp", "-p", "tcp", "-j", "DROP"])
     run_cmd(["iptables", "-I", "INPUT", "1", "-m", "conntrack", "--ctstate", "NEW", "-m", "udp", "-p", "udp", "-j", "DROP"])
 
@@ -576,16 +568,16 @@ def action_purge_ram(args: List[str]) -> int:
         return 1
 
 def action_emergency_isolate(args: List[str]) -> int:
-    # 1. Hardware radio kill
+
     run_cmd(["rfkill", "block", "all"])
-    # 2. NetworkManager disable
+
     run_cmd(["nmcli", "networking", "off"])
-    # 3. Bring down network interfaces
+
     for iface in glob.glob("/sys/class/net/*"):
         name = os.path.basename(iface)
         if name != "lo":
             run_cmd(["ip", "link", "set", "dev", name, "down"])
-    # 4. Nuclear DROP firewall
+
     cmds = [
         ["iptables", "-F"],
         ["iptables", "-X"],
@@ -602,7 +594,7 @@ def action_emergency_isolate(args: List[str]) -> int:
     ]
     for c in cmds:
         run_cmd(c)
-    # 5. Terminate sensitive processes
+
     sensitive = ["firefox", "chromium", "brave", "tor", "openvpn", "wireguard", "telegram-desktop", "signal-desktop"]
     for p in sensitive:
         run_cmd(["pkill", "-9", "-f", p])
@@ -618,17 +610,17 @@ def action_panic_nuke(args: List[str]) -> int:
     partitions = glob.glob("/dev/sd[a-z][0-9]*") + glob.glob("/dev/nvme[0-9]n[0-9]p[0-9]*")
     block_devices = glob.glob("/dev/sd[a-z]") + glob.glob("/dev/nvme[0-9]n[0-9]")
 
-    # Tier 1: LUKS headers
+
     for p in partitions:
         run_cmd(["cryptsetup", "luksErase", "--batch-mode", p])
         run_cmd(["dd", "if=/dev/urandom", f"of={p}", "bs=1M", "count=16", "status=none", "conv=fsync"])
 
-    # Tier 2: blkdiscard
+
     for b in block_devices:
         run_cmd(["blkdiscard", "-f", "-z", b])
         run_cmd(["sgdisk", "--zap-all", b])
 
-    # Tier 3: Memory crash panic
+
     run_cmd(["sync"])
     try:
         with open("/proc/sys/kernel/sysrq", "w") as f:
@@ -640,7 +632,6 @@ def action_panic_nuke(args: List[str]) -> int:
     return 0
 
 def is_safe_block_device(dev: str) -> bool:
-    """Ensures device is a valid block device and NEVER the active host root/boot device."""
     if not re.match(r"^/dev/(sd[a-z][0-9]*|nvme[0-9]n[0-9](p[0-9]+)?|loop[0-9]+|vd[a-z][0-9]*|mapper/[a-zA-Z0-9_\-]+)$", dev):
         return False
     if not os.path.exists(dev):
