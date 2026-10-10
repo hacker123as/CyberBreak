@@ -79,17 +79,30 @@ class NetworkAuditor:
 
     @staticmethod
     def get_external_identity() -> Dict[str, Any]:
-        """Queries external endpoints to discover public IP, ISP, and location."""
+        """Queries external endpoints to discover public IP, ISP, city, state, and leak status."""
         data = {
             "ip": "Unknown",
             "isp": "Unknown",
             "country": "Unknown",
+            "region": "Unknown",
             "city": "Unknown",
+            "postal": "Unknown",
+            "asn": "Unknown",
+            "timezone": "Unknown",
             "is_mullvad": False,
             "is_proton": False,
+            "is_tor": False,
+            "is_leak": True,
             "raw": {}
         }
-        for url in NetworkAuditor.ENDPOINTS:
+        endpoints = [
+            "https://api.protonvpn.ch/vpn/location",
+            "https://am.i.mullvad.net/json",
+            "https://ipapi.co/json/",
+            "https://ifconfig.me/all.json",
+            "https://api.ipify.org?format=json"
+        ]
+        for url in endpoints:
             try:
                 log(f"Querying external identity endpoint: {url}", "NET")
                 req = urllib.request.Request(
@@ -102,14 +115,40 @@ class NetworkAuditor:
                     ip_val = parsed.get("ip", parsed.get("IP", "Unknown"))
                     if ip_val != "Unknown":
                         data["ip"] = ip_val
-                        data["isp"] = parsed.get("organization", parsed.get("isp", parsed.get("ISP", "Unknown")))
-                        data["country"] = parsed.get("country", parsed.get("country_name", parsed.get("Country", "Unknown")))
-                        data["city"] = parsed.get("city", parsed.get("City", "Unknown"))
-                        data["is_mullvad"] = parsed.get("mullvad_exit_ip", False)
-                        if "proton" in data["isp"].lower():
+                        data["isp"] = (
+                            parsed.get("org") or parsed.get("organization") or
+                            parsed.get("isp") or parsed.get("ISP") or "Unknown"
+                        )
+                        data["country"] = (
+                            parsed.get("country_name") or parsed.get("country") or
+                            parsed.get("Country") or "Unknown"
+                        )
+                        data["region"] = (
+                            parsed.get("region") or parsed.get("region_name") or
+                            parsed.get("state") or parsed.get("State") or "Unknown"
+                        )
+                        data["city"] = parsed.get("city") or parsed.get("City") or "Unknown"
+                        data["postal"] = parsed.get("postal") or parsed.get("zip") or "Unknown"
+                        data["asn"] = str(parsed.get("asn") or parsed.get("asn_organization") or "Unknown")
+                        data["timezone"] = parsed.get("timezone") or "Unknown"
+
+                        data["is_mullvad"] = bool(parsed.get("mullvad_exit_ip", False))
+                        isp_lower = data["isp"].lower()
+                        if "proton" in isp_lower or "proton" in parsed.get("Organization", "").lower():
                             data["is_proton"] = True
+                        if "tor" in isp_lower or "exit" in isp_lower:
+                            data["is_tor"] = True
+
+                        if data["is_proton"] or data["is_mullvad"] or data["is_tor"]:
+                            data["is_leak"] = False
+                        else:
+                            data["is_leak"] = True
+
                         data["raw"] = parsed
-                        log(f"Identity resolved: IP={data['ip']} ISP={data['isp']}", "OK")
+                        log(
+                            f"Identity resolved: IP={data['ip']} Location={data['city']}, {data['region']}, {data['country']} "
+                            f"ISP={data['isp']} LeakRevealed={data['is_leak']}", "OK"
+                        )
                         return data
             except Exception as e:
                 log(f"Endpoint {url} failed: {e}", "WARN")

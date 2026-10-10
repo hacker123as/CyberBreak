@@ -18,7 +18,7 @@ class FirewallPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("HARDENED FIREWALL & KILLSWITCH PROFILES")
+        title = QLabel("HARDENED FIREWALL & KILLSWITCH PROFILES // By lilami")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Linux Netfilter iptables rule enforcement and VPN leak containment")
         subtitle.setObjectName("HeaderSubtitle")
@@ -76,6 +76,7 @@ class FirewallPage(QWidget):
         p1_row.addStretch()
 
         p1_btn = QPushButton("APPLY STRICT PROFILE")
+        p1_btn.setObjectName("CyanButton")
         p1_btn.clicked.connect(self.on_apply_strict)
         p1_row.addWidget(p1_btn)
         f_layout.addLayout(p1_row)
@@ -115,7 +116,7 @@ class FirewallPage(QWidget):
         proton_row.addStretch()
 
         proton_btn = QPushButton("ARM PROTON KILLSWITCH")
-        proton_btn.setStyleSheet("border-color: #00ddff; color: #00ddff; font-weight: 700;")
+        proton_btn.setObjectName("SecondaryButton")
         proton_btn.clicked.connect(self.on_apply_proton)
         proton_row.addWidget(proton_btn)
         f_layout.addLayout(proton_row)
@@ -135,6 +136,7 @@ class FirewallPage(QWidget):
         p3_row.addStretch()
 
         p3_btn = QPushButton("RESET FIREWALL")
+        p3_btn.setObjectName("OutlineButton")
         p3_btn.clicked.connect(self.on_reset)
         p3_row.addWidget(p3_btn)
         f_layout.addLayout(p3_row)

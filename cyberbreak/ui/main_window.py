@@ -16,18 +16,20 @@ from cyberbreak.ui.pages.usbguard_page import USBGuardPage
 from cyberbreak.ui.pages.hardening_page import HardeningPage
 from cyberbreak.ui.pages.metadata_page import MetadataPage
 from cyberbreak.ui.pages.panic_page import PanicPage
+from cyberbreak.ui.pages.usb_armory_page import USBArmoryPage
+from cyberbreak.ui.pages.settings_page import SettingsPage
 from cyberbreak.ui.pages.desktop_page import DesktopPage
 from cyberbreak.ui.pages.terminal_page import TerminalPage
 from cyberbreak.core.clipboard_guard import ClipboardGuard
 
 class MainWindow(QMainWindow):
-    """CyberBreak Main Application Window."""
+    """CyberBreak Main Application Window. Engineered by lilami."""
 
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("CyberBreak - Hardened Security & Anti-Forensics Fortress")
-        self.resize(1180, 760)
-        self.setMinimumSize(1000, 650)
+        self.setWindowTitle("CyberBreak // By lilami - Defensive & Anti-Forensics Fortress")
+        self.resize(1200, 780)
+        self.setMinimumSize(1020, 660)
 
         # Apply dark modern stylesheet
         self.setStyleSheet(MAIN_STYLESHEET)
@@ -62,8 +64,8 @@ class MainWindow(QMainWindow):
         brand_title.setStyleSheet("font-size: 17px; font-weight: 800; color: #00ff66; letter-spacing: 1px;")
         b_layout.addWidget(brand_title)
 
-        brand_sub = QLabel("KICKSECURE FORTRESS")
-        brand_sub.setStyleSheet("font-size: 10px; font-weight: 700; color: #70707c; letter-spacing: 1.5px;")
+        brand_sub = QLabel("ENGINEERED BY LILAMI")
+        brand_sub.setStyleSheet("font-size: 10px; font-weight: 800; color: #00ff66; letter-spacing: 1.5px;")
         b_layout.addWidget(brand_sub)
 
         sb_layout.addWidget(brand_box)
@@ -80,8 +82,10 @@ class MainWindow(QMainWindow):
             "Tor & Decoy Traffic",
             "Firewall & Profiles",
             "BadUSB & Hardware",
+            "USB & Storage Armory",
             "Kernel Hardening",
             "Metadata & Shredder",
+            "Control Center & Settings",
             "Emergency Defense",
             "Desktop Integration",
             "Audit Terminal"
@@ -102,8 +106,8 @@ class MainWindow(QMainWindow):
         status_dot = QLabel("●")
         status_dot.setStyleSheet("color: #00ff66; font-size: 12px;")
         f_layout.addWidget(status_dot)
-        status_txt = QLabel("System Guard Active")
-        status_txt.setStyleSheet("color: #8c8c96; font-size: 11px; font-weight: 600;")
+        status_txt = QLabel("Fortress Active // By lilami")
+        status_txt.setStyleSheet("color: #9da3ba; font-size: 11px; font-weight: 700;")
         f_layout.addWidget(status_txt)
         f_layout.addStretch()
         sb_layout.addWidget(footer)
@@ -112,7 +116,7 @@ class MainWindow(QMainWindow):
 
         # Main Stacked Pages
         self.stack = QStackedWidget()
-        self.stack.setStyleSheet("background-color: #121214;")
+        self.stack.setStyleSheet("background-color: #0b0c10;")
 
         # Instantiate all modular pages
         self.pages = [
@@ -122,8 +126,10 @@ class MainWindow(QMainWindow):
             TorCoverPage(),
             FirewallPage(),
             USBGuardPage(),
+            USBArmoryPage(),
             HardeningPage(),
             MetadataPage(),
+            SettingsPage(),
             PanicPage(),
             DesktopPage(),
             TerminalPage()

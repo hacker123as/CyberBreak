@@ -6,6 +6,8 @@ from cyberbreak.ui.widgets.status_card import StatusCard
 from cyberbreak.core.network_auditor import NetworkAuditor
 from cyberbreak.core.kernel_hardening import KernelHardening
 from cyberbreak.core.metadata_cleaner import MetadataCleaner
+from cyberbreak.core.firewall_controller import FirewallController
+from cyberbreak.core.usb_armory import USBArmory
 
 class AuditWorker(QThread):
     finished_data = pyqtSignal(dict)
@@ -23,21 +25,24 @@ class AuditWorker(QThread):
         })
 
 class DashboardPage(QWidget):
-    """Overall workstation security posture and status matrix."""
+    """
+    Workstation Security Posture Matrix & Threat Radar.
+    Engineered by lilami.
+    """
 
     def __init__(self, parent=None):
         super().__init__(parent)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(20)
+        layout.setSpacing(18)
 
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("SECURITY POSTURE MATRIX")
+        title = QLabel("SECURITY POSTURE MATRIX // By lilami")
         title.setObjectName("HeaderTitle")
-        subtitle = QLabel("Real-time kernel defenses, leak sensors, and hardware interlocks")
+        subtitle = QLabel("Real-time kernel defenses, socket leak sensors, and hardware interlocks")
         subtitle.setObjectName("HeaderSubtitle")
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
@@ -52,9 +57,30 @@ class DashboardPage(QWidget):
 
         layout.addLayout(header)
 
+        # Dynamic Threat Alert Banner
+        self.alert_banner = QFrame()
+        self.alert_banner.setObjectName("Card")
+        b_layout = QHBoxLayout(self.alert_banner)
+        b_layout.setContentsMargins(16, 14, 16, 14)
+        self.b_icon = QLabel("📡")
+        self.b_icon.setStyleSheet("font-size: 24px;")
+        b_layout.addWidget(self.b_icon)
+
+        b_text_box = QVBoxLayout()
+        self.b_title = QLabel("FORTRESS INITIALIZING...")
+        self.b_title.setStyleSheet("font-weight: 800; font-size: 14px; color: #ffffff;")
+        self.b_sub = QLabel("Probing active routes and checking for hardware / network leaks...")
+        self.b_sub.setStyleSheet("font-size: 12px; color: #8c93a8;")
+        b_text_box.addWidget(self.b_title)
+        b_text_box.addWidget(self.b_sub)
+        b_layout.addLayout(b_text_box)
+        b_layout.addStretch()
+
+        layout.addWidget(self.alert_banner)
+
         # Metric Cards Grid
         grid = QGridLayout()
-        grid.setSpacing(16)
+        grid.setSpacing(14)
 
         self.card_ip = StatusCard(
             "EXTERNAL IP / IDENTITY",
@@ -98,27 +124,38 @@ class DashboardPage(QWidget):
         actions_frame = QFrame()
         actions_frame.setObjectName("Card")
         act_layout = QHBoxLayout(actions_frame)
-        act_layout.setContentsMargins(16, 16, 16, 16)
+        act_layout.setContentsMargins(16, 14, 16, 14)
         act_layout.setSpacing(12)
 
-        act_title = QLabel("QUICK ACTIONS:")
+        act_title = QLabel("QUICK COMBAT ACTIONS:")
         act_title.setObjectName("CardTitle")
         act_layout.addWidget(act_title)
 
-        purge_btn = QPushButton("PURGE RAM CACHE")
+        purge_btn = QPushButton("🧹 PURGE RAM CACHE")
+        purge_btn.setObjectName("OutlineButton")
         purge_btn.clicked.connect(MetadataCleaner.purge_ram_cache)
         act_layout.addWidget(purge_btn)
 
-        harden_btn = QPushButton("ENFORCE KERNEL SYSCTL")
+        harden_btn = QPushButton("🛡️ ENFORCE SYSCTL")
+        harden_btn.setObjectName("CyanButton")
         harden_btn.clicked.connect(KernelHardening.apply_sysctl_hardening)
         act_layout.addWidget(harden_btn)
+
+        trim_btn = QPushButton("⚡ RUN SSD TRIM")
+        trim_btn.setObjectName("OutlineButton")
+        trim_btn.clicked.connect(USBArmory.trim_drives)
+        act_layout.addWidget(trim_btn)
+
+        fw_btn = QPushButton("🔒 STRICT FIREWALL")
+        fw_btn.setObjectName("AccentButton")
+        fw_btn.clicked.connect(FirewallController.apply_strict_killswitch)
+        act_layout.addWidget(fw_btn)
 
         act_layout.addStretch()
         layout.addWidget(actions_frame)
 
         layout.addStretch()
 
-        # Initial background scan
         self.run_audit()
 
     def run_audit(self):
@@ -136,20 +173,24 @@ class DashboardPage(QWidget):
         proton = data.get("proton", {})
         ip_val = ident.get("ip", proton.get("ip", "Unknown"))
         isp = ident.get("isp", proton.get("isp", "Unknown"))
-        self.card_ip.set_value(ip_val)
-        self.card_ip.subtitle_label.setText(f"ISP: {isp} ({ident.get('country', proton.get('country', ''))})")
-        
-        if proton.get("is_connected") or ident.get("is_proton"):
-            self.card_ip.set_pill("PROTON VPN SECURE", "SECURE")
-            self.card_ip.subtitle_label.setText(f"Proton VPN Active: {isp} ({ident.get('country', proton.get('country', ''))})")
-        elif ident.get("is_mullvad") or "tor" in isp.lower():
-            self.card_ip.set_pill("PROTECTED", "SECURE")
-        else:
-            self.card_ip.set_pill("PUBLIC IP", "WARN")
+        city = ident.get("city", proton.get("city", "Unknown"))
+        region = ident.get("region", "Unknown")
+        country = ident.get("country", proton.get("country", "Unknown"))
 
         gw = data.get("gw", {})
         iface = gw.get("interface", proton.get("interface", "Unknown"))
         is_tun = gw.get("is_tunnel", False) or proton.get("is_connected", False)
+
+        self.card_ip.set_value(ip_val)
+        self.card_ip.subtitle_label.setText(f"ISP: {isp} • {city}, {country}")
+        
+        if proton.get("is_connected") or ident.get("is_proton"):
+            self.card_ip.set_pill("PROTON VPN SECURE", "SECURE")
+        elif ident.get("is_mullvad") or "tor" in isp.lower():
+            self.card_ip.set_pill("PROTECTED EXIT", "SECURE")
+        else:
+            self.card_ip.set_pill("REAL IP REVEALED", "DANGER")
+
         self.card_route.set_value(f"{iface} ({gw.get('gateway_ip', '')})")
         if proton.get("is_connected") or gw.get("is_proton"):
             self.card_route.subtitle_label.setText("Routed via Proton VPN encrypted tunnel")
@@ -159,7 +200,7 @@ class DashboardPage(QWidget):
             self.card_route.set_pill("ENCRYPTED", "SECURE")
         else:
             self.card_route.subtitle_label.setText("Traffic leaving via raw unencrypted adapter")
-            self.card_route.set_pill("LEAK WARNING", "DANGER")
+            self.card_route.set_pill("LEAK DETECTED", "DANGER")
 
         ipv6 = data.get("ipv6", {})
         if ipv6.get("has_global_ipv6", False):
@@ -167,6 +208,22 @@ class DashboardPage(QWidget):
             self.card_ipv6.subtitle_label.setText("Traffic may bypass IPv4 VPN killswitch")
             self.card_ipv6.set_pill("LEAK RISK", "DANGER")
         else:
-            self.card_ipv6.set_value("NO LEAK")
+            self.card_ipv6.set_value("Disabled / Neutral")
             self.card_ipv6.subtitle_label.setText("IPv6 global routable addresses neutralized")
             self.card_ipv6.set_pill("SAFE", "SECURE")
+
+        # Dynamic Banner Feedback
+        if not is_tun and not proton.get("is_connected") and not ident.get("is_tor"):
+            self.alert_banner.setStyleSheet("background-color: #240c10; border: 2px solid #ff2a4b; border-radius: 8px;")
+            self.b_icon.setText("🚨")
+            self.b_title.setText("⚠️ WARNING: YOUR REAL IP IS REVEALED!")
+            self.b_title.setStyleSheet("font-weight: 800; font-size: 14px; color: #ff3344;")
+            self.b_sub.setText(f"Real physical location exposed: {city}, {region}, {country} via {isp}. Activate Killswitch immediately.")
+            self.b_sub.setStyleSheet("font-size: 12px; color: #ffffff;")
+        else:
+            self.alert_banner.setStyleSheet("background-color: #0b1f14; border: 2px solid #00ff66; border-radius: 8px;")
+            self.b_icon.setText("🛡️")
+            self.b_title.setText("FORTRESS DEFENSES ARMED // BY LILAMI")
+            self.b_title.setStyleSheet("font-weight: 800; font-size: 14px; color: #00ff66;")
+            self.b_sub.setText(f"Traffic cloaked via encrypted gateway ({iface}). Zero leak vectors exposed.")
+            self.b_sub.setStyleSheet("font-size: 12px; color: #d0f5df;")

@@ -61,6 +61,13 @@ if command -v apt-get >/dev/null 2>&1; then
         network-manager \
         ethtool \
         cryptsetup \
+        dosfstools \
+        e2fsprogs \
+        tar \
+        zstd \
+        fdisk \
+        util-linux \
+        btrfs-progs \
         curl \
         git \
         pkexec \
@@ -77,6 +84,11 @@ elif command -v pacman >/dev/null 2>&1; then
         networkmanager \
         ethtool \
         cryptsetup \
+        dosfstools \
+        e2fsprogs \
+        tar \
+        zstd \
+        btrfs-progs \
         curl \
         git \
         polkit || true
@@ -251,9 +263,11 @@ $SUDO_CMD chmod 755 /etc/skel/Desktop/cyberbreak.desktop
 
 echo -e "\n${GREEN}${BOLD}[SUCCESS] CyberBreak installed and configured successfully for Kicksecure!${NC}"
 echo -e "${CYAN}----------------------------------------------------------------------${NC}"
+echo -e "  * Crafted & Engineered exclusively by ${BOLD}lilami${NC}."
 echo -e "  * Kicksecure separation: Installed via ${BOLD}sysmaint${NC}, fully usable by ${BOLD}user${NC}."
 echo -e "  * Ordinary features run directly in user-space without sudo."
 echo -e "  * Privileged operations safely routed via scoped ${BOLD}cyberbreak-helper${NC}."
+echo -e "  * USB Armory, LUKS2 Vault, Keystore & Formatter fully armed."
 echo -e "  * Desktop shortcuts placed on all user accounts in /home/*/Desktop."
 echo -e "  * Run from terminal: ${BOLD}cyberbreak${NC}"
 echo -e "${CYAN}----------------------------------------------------------------------${NC}\n"

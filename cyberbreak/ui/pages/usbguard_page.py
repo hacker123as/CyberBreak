@@ -22,7 +22,7 @@ class USBGuardPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("HARDWARE DEFENSE & DEVICE INTERLOCK")
+        title = QLabel("HARDWARE DEFENSE & DEVICE INTERLOCK // By lilami")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("BadUSB injection defense, USB port authorization, webcam driver kill, and mic mute")
         subtitle.setObjectName("HeaderSubtitle")
@@ -71,6 +71,7 @@ class USBGuardPage(QWidget):
         usb_row.addStretch()
 
         self.usb_btn = QPushButton("LOCKDOWN USB PORTS")
+        self.usb_btn.setObjectName("CyanButton")
         self.usb_btn.clicked.connect(self.toggle_usb)
         usb_row.addWidget(self.usb_btn)
         f_layout.addLayout(usb_row)
@@ -90,6 +91,7 @@ class USBGuardPage(QWidget):
         cam_row.addStretch()
 
         self.cam_btn = QPushButton("KILL WEBCAM DRIVER")
+        self.cam_btn.setObjectName("PanicButton")
         self.cam_btn.clicked.connect(self.toggle_cam)
         cam_row.addWidget(self.cam_btn)
         f_layout.addLayout(cam_row)
@@ -109,6 +111,7 @@ class USBGuardPage(QWidget):
         mic_row.addStretch()
 
         self.mic_btn = QPushButton("MUTE MICROPHONE")
+        self.mic_btn.setObjectName("SecondaryButton")
         self.mic_btn.clicked.connect(self.toggle_mic)
         mic_row.addWidget(self.mic_btn)
         f_layout.addLayout(mic_row)

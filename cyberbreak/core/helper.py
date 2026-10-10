@@ -30,7 +30,17 @@ ALLOWED_ACTIONS = [
     "apparmor-enforce",
     "purge-ram",
     "emergency-isolate",
-    "panic-nuke"
+    "panic-nuke",
+    "usb-luks-format",
+    "usb-luks-open",
+    "usb-luks-close",
+    "usb-mount",
+    "usb-umount",
+    "usb-format",
+    "usb-wipe-zero",
+    "usb-flash-iso",
+    "system-backup-usb",
+    "drive-trim"
 ]
 
 def run_cmd(cmd: List[str]) -> Tuple[int, str, str]:
@@ -408,6 +418,217 @@ def action_panic_nuke(args: List[str]) -> int:
         pass
     return 0
 
+def is_safe_block_device(dev: str) -> bool:
+    """Ensures device is a valid block device and NEVER the active host root/boot device."""
+    if not re.match(r"^/dev/(sd[a-z][0-9]*|nvme[0-9]n[0-9](p[0-9]+)?|loop[0-9]+|vd[a-z][0-9]*|mapper/[a-zA-Z0-9_\-]+)$", dev):
+        return False
+    if not os.path.exists(dev):
+        return False
+    try:
+        with open("/proc/mounts", "r") as f:
+            for line in f:
+                parts = line.strip().split()
+                if len(parts) >= 2:
+                    mounted_dev, mountpoint = parts[0], parts[1]
+                    if mountpoint in ("/", "/boot", "/boot/efi", "/etc") and (mounted_dev == dev or dev.startswith(mounted_dev)):
+                        return False
+    except Exception:
+        pass
+    return True
+
+def action_usb_luks_format(args: List[str]) -> int:
+    if len(args) < 2:
+        print("ERROR: Device and keyfile path required", file=sys.stderr)
+        return 2
+    dev, keyfile = args[0], args[1]
+    if not is_safe_block_device(dev):
+        print(f"ERROR: Unsafe target device '{dev}'", file=sys.stderr)
+        return 3
+    if not os.path.exists(keyfile):
+        print(f"ERROR: Keyfile not found: '{keyfile}'", file=sys.stderr)
+        return 4
+    cmd = [
+        "cryptsetup", "luksFormat", "--type", "luks2",
+        "--cipher", "aes-xts-plain64", "--key-size", "512",
+        "--hash", "sha512", "--batch-mode",
+        "--key-file", keyfile, dev
+    ]
+    code, out, err = run_cmd(cmd)
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(f"OK: LUKS2 volume formatted on {dev}")
+    return 0
+
+def action_usb_luks_open(args: List[str]) -> int:
+    if len(args) < 3:
+        print("ERROR: Device, mapper name, and keyfile required", file=sys.stderr)
+        return 2
+    dev, mapper, keyfile = args[0], args[1], args[2]
+    if not re.match(r"^[a-zA-Z0-9_\-]{1,32}$", mapper):
+        print("ERROR: Invalid mapper name", file=sys.stderr)
+        return 3
+    if not os.path.exists(keyfile):
+        print("ERROR: Keyfile not found", file=sys.stderr)
+        return 4
+    code, out, err = run_cmd(["cryptsetup", "luksOpen", dev, mapper, "--key-file", keyfile])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(f"OK: Mapper {mapper} opened")
+    return 0
+
+def action_usb_luks_close(args: List[str]) -> int:
+    if len(args) < 1:
+        print("ERROR: Mapper name required", file=sys.stderr)
+        return 2
+    mapper = args[0]
+    if not re.match(r"^[a-zA-Z0-9_\-]{1,32}$", mapper):
+        return 3
+    code, out, err = run_cmd(["cryptsetup", "luksClose", mapper])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(f"OK: Mapper {mapper} closed")
+    return 0
+
+def action_usb_mount(args: List[str]) -> int:
+    if len(args) < 3:
+        print("ERROR: Device, mountpoint, and fstype required", file=sys.stderr)
+        return 2
+    dev, mountpoint, fstype = args[0], args[1], args[2]
+    if not (mountpoint.startswith("/media/") or mountpoint.startswith("/mnt/")):
+        print("ERROR: Mountpoint must be inside /media/ or /mnt/", file=sys.stderr)
+        return 3
+    os.makedirs(mountpoint, exist_ok=True)
+    code, out, err = run_cmd(["mount", "-t", fstype, dev, mountpoint])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    run_cmd(["chmod", "770", mountpoint])
+    print(f"OK: Mounted {dev} on {mountpoint}")
+    return 0
+
+def action_usb_umount(args: List[str]) -> int:
+    if len(args) < 1:
+        print("ERROR: Mountpoint required", file=sys.stderr)
+        return 2
+    mountpoint = args[0]
+    if not (mountpoint.startswith("/media/") or mountpoint.startswith("/mnt/")):
+        print("ERROR: Mountpoint must be inside /media/ or /mnt/", file=sys.stderr)
+        return 3
+    code, out, err = run_cmd(["umount", "-l", mountpoint])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(f"OK: Unmounted {mountpoint}")
+    return 0
+
+def action_usb_format(args: List[str]) -> int:
+    if len(args) < 2:
+        print("ERROR: Device and fstype required", file=sys.stderr)
+        return 2
+    dev, fstype = args[0], args[1]
+    label = args[2] if len(args) > 2 else "Storage"
+    label = re.sub(r"[^a-zA-Z0-9_\-]", "", label)[:16] or "Storage"
+
+    if not is_safe_block_device(dev):
+        print(f"ERROR: Unsafe target device '{dev}'", file=sys.stderr)
+        return 3
+
+    if fstype == "ext4":
+        code, out, err = run_cmd(["mkfs.ext4", "-F", "-L", label, dev])
+    elif fstype == "btrfs":
+        code, out, err = run_cmd(["mkfs.btrfs", "-f", "-L", label, dev])
+    elif fstype == "vfat":
+        code, out, err = run_cmd(["mkfs.vfat", "-F", "32", "-n", label, dev])
+    elif fstype == "exfat":
+        code, out, err = run_cmd(["mkfs.exfat", "-n", label, dev])
+    else:
+        print(f"ERROR: Unsupported fstype '{fstype}'", file=sys.stderr)
+        return 4
+
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(f"OK: Formatted {dev} as {fstype}")
+    return 0
+
+def action_usb_wipe_zero(args: List[str]) -> int:
+    if len(args) < 1:
+        print("ERROR: Device required", file=sys.stderr)
+        return 2
+    dev = args[0]
+    if not is_safe_block_device(dev):
+        print(f"ERROR: Unsafe target device '{dev}'", file=sys.stderr)
+        return 3
+    run_cmd(["wipefs", "-a", dev])
+    code, out, err = run_cmd(["dd", "if=/dev/zero", f"of={dev}", "bs=1M", "count=64", "status=none", "conv=fsync"])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(f"OK: Partition table wiped on {dev}")
+    return 0
+
+def action_usb_flash_iso(args: List[str]) -> int:
+    if len(args) < 2:
+        print("ERROR: ISO path and target device required", file=sys.stderr)
+        return 2
+    iso, dev = args[0], args[1]
+    if not os.path.exists(iso) or not iso.lower().endswith(".iso"):
+        print(f"ERROR: Invalid ISO path: {iso}", file=sys.stderr)
+        return 3
+    if not is_safe_block_device(dev):
+        print(f"ERROR: Unsafe target device '{dev}'", file=sys.stderr)
+        return 4
+    code, out, err = run_cmd(["dd", f"if={iso}", f"of={dev}", "bs=4M", "status=none", "conv=fdatasync"])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    run_cmd(["sync"])
+    print(f"OK: Burned {iso} to {dev}")
+    return 0
+
+def action_system_backup_usb(args: List[str]) -> int:
+    if len(args) < 3:
+        print("ERROR: Target dir, mode, and user required", file=sys.stderr)
+        return 2
+    target_dir, mode, user = args[0], args[1], args[2]
+    if not (target_dir.startswith("/media/") or target_dir.startswith("/mnt/")):
+        print("ERROR: Backup target must be mounted in /media/ or /mnt/", file=sys.stderr)
+        return 3
+    if not os.path.exists(target_dir):
+        print(f"ERROR: Target directory does not exist: {target_dir}", file=sys.stderr)
+        return 4
+
+    timestamp = subprocess.getoutput("date +%Y%m%d_%H%M%S")
+    out_file = os.path.join(target_dir, f"cyberbreak_backup_{mode}_{timestamp}.tar.gz")
+
+    if mode == "home":
+        src = f"/home/{user}" if os.path.exists(f"/home/{user}") else "/home"
+        cmd = ["tar", "-czf", out_file, "--exclude=.cache", "--exclude=.local/share/Trash", src]
+    else:
+        cmd = [
+            "tar", "-czf", out_file,
+            "/etc", "/usr/local/bin", f"/home/{user}"
+        ]
+
+    code, out, err = run_cmd(cmd)
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    run_cmd(["sync"])
+    print(f"OK: System backup created at {out_file}")
+    return 0
+
+def action_drive_trim(args: List[str]) -> int:
+    code, out, err = run_cmd(["fstrim", "-av"])
+    if code != 0:
+        print(f"ERROR: {err or out}", file=sys.stderr)
+        return code
+    print(out or "OK: All SSD storage and crypt mappings trimmed.")
+    return 0
+
 def main():
     if os.geteuid() != 0:
         print("ERROR: cyberbreak-helper must be executed with root privileges via polkit or sudo.", file=sys.stderr)
@@ -437,6 +658,16 @@ def main():
         "purge-ram": action_purge_ram,
         "emergency-isolate": action_emergency_isolate,
         "panic-nuke": action_panic_nuke,
+        "usb-luks-format": action_usb_luks_format,
+        "usb-luks-open": action_usb_luks_open,
+        "usb-luks-close": action_usb_luks_close,
+        "usb-mount": action_usb_mount,
+        "usb-umount": action_usb_umount,
+        "usb-format": action_usb_format,
+        "usb-wipe-zero": action_usb_wipe_zero,
+        "usb-flash-iso": action_usb_flash_iso,
+        "system-backup-usb": action_system_backup_usb,
+        "drive-trim": action_drive_trim,
     }
 
     handler = action_map.get(action)

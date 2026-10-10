@@ -19,7 +19,7 @@ class PanicPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("EMERGENCY DEFENSE & PANIC CENTER")
+        title = QLabel("EMERGENCY DEFENSE & PANIC CENTER // By lilami")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Dual-Action Panic System: Sub-50ms Network Blackout and Master Cryptographic Nuke")
         subtitle.setObjectName("HeaderSubtitle")

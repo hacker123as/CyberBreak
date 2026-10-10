@@ -18,7 +18,7 @@ class SpooferPage(QWidget):
         # Header
         header = QHBoxLayout()
         title_box = QVBoxLayout()
-        title = QLabel("HARDWARE & IDENTITY SPOOFER")
+        title = QLabel("HARDWARE & IDENTITY SPOOFER // By lilami")
         title.setObjectName("HeaderTitle")
         subtitle = QLabel("Randomize physical network MACs, OEM hostnames, machine-id, and UTC timezone")
         subtitle.setObjectName("HeaderSubtitle")
@@ -29,6 +29,7 @@ class SpooferPage(QWidget):
         header.addStretch()
 
         refresh_btn = QPushButton("REFRESH ADAPTERS")
+        refresh_btn.setObjectName("OutlineButton")
         refresh_btn.clicked.connect(self.refresh_adapters)
         header.addWidget(refresh_btn)
 
@@ -48,10 +49,6 @@ class SpooferPage(QWidget):
         select_row = QHBoxLayout()
         select_row.addWidget(QLabel("Target Interface:"))
         self.adapter_combo = QComboBox()
-        self.adapter_combo.setStyleSheet(
-            "background-color: #161619; color: #f0f0f5; border: 1px solid #2a2a32; "
-            "padding: 8px 12px; border-radius: 6px; min-width: 200px;"
-        )
         self.adapter_combo.currentIndexChanged.connect(self.on_adapter_selected)
         select_row.addWidget(self.adapter_combo)
 
@@ -104,14 +101,17 @@ class SpooferPage(QWidget):
         act_layout.setSpacing(12)
 
         host_btn = QPushButton("RANDOMIZE HOSTNAME")
+        host_btn.setObjectName("CyanButton")
         host_btn.clicked.connect(self.on_randomize_hostname)
         act_layout.addWidget(host_btn)
 
         mid_btn = QPushButton("RE-SEED MACHINE-ID")
+        mid_btn.setObjectName("SecondaryButton")
         mid_btn.clicked.connect(self.on_reseed_machine_id)
         act_layout.addWidget(mid_btn)
 
         utc_btn = QPushButton("LOCK TIMEZONE TO UTC")
+        utc_btn.setObjectName("OutlineButton")
         utc_btn.clicked.connect(SpooferEngine.set_utc_timezone)
         act_layout.addWidget(utc_btn)
 
