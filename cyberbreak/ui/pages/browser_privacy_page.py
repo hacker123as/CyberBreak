@@ -452,14 +452,24 @@ class BrowserPrivacyPage(QWidget):
     def open_url(self, text):
         if not text:
             return
+        if hasattr(self, 'tabs') and self.tabs is not None:
+            self.tabs.setCurrentIndex(0)
         url = format_search_or_url(text)
         if not url:
             self.feedback.setText('Enter a valid HTTPS address or search term.')
             return
 
         if not WEBENGINE_AVAILABLE:
-            self.feedback.setText('WebEngine missing on host: Launching URL in external hardened browser...')
-            self.manager.launch(url)
+            self.feedback.setText('WebEngine missing on host: Launching in external privacy browser...')
+            ok, msg = self.manager.launch(url)
+            if not ok:
+                import webbrowser
+                try:
+                    webbrowser.open(url)
+                    msg = "Launched system browser to open PixelDefence data leaking check."
+                except Exception:
+                    pass
+            self.feedback.setText(msg)
             return
 
         if self._closing:

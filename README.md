@@ -1,20 +1,33 @@
-# CyberBreak
-
 <div align="center">
+
+<img src="docs/images/cyberbreak_banner.png" alt="CyberBreak Hardened Security & Anti-Forensics Fortress" width="100%" />
+
+```
+   ______      __               ____                 __
+  / ____/_  __/ /_  ___  _____ / __ )________  ____ _/ /__
+ / /   / / / / __ \/ _ \/ ___// __  / ___/ _ \/ __ `/ //_/
+/ /___/ /_/ / /_/ /  __/ /   / /_/ / /  /  __/ /_/ / ,<
+\____/\__, /_.___/\___/_/   /_____/_/   \___/\__,_/_/|_|
+     /____/
+       HARDENED SECURITY & ANTI-FORENSICS FORTRESS
+```
 
 **A Hardened Linux Anti-Forensics, Privacy & Hardware Defense Fortress**  
 *Crafted and engineered exclusively by **lilami only**.*
 
-[![Linux](https://img.shields.io/badge/Platform-Linux%20%7C%20Kicksecure%20%7C%20Debian%20%7C%20Arch-blue.svg)](#installation)
-[![Python](https://img.shields.io/badge/Python-3.10%2B-green.svg)](https://www.python.org/)
-[![GUI](https://img.shields.io/badge/GUI-PyQt6%20Glassmorphism-6366f1.svg)](#inside-the-workspace)
-[![PixelDefence](https://img.shields.io/badge/PixelDefence-100%2F100%20Verified-00c853.svg)](#browser-privacy)
-[![License](https://img.shields.io/badge/Security-Hardened-red.svg)](#privilege-separation--kicksecure-architecture)
+<p align="center">
+  <a href="#installation"><img src="https://img.shields.io/badge/Platform-Linux%20%7C%20Kicksecure%20%7C%20Debian%20%7C%20Arch-blue.svg" alt="Platform" /></a>
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10%2B-green.svg" alt="Python" /></a>
+  <a href="#inside-the-workspace"><img src="https://img.shields.io/badge/GUI-PyQt6%20Glassmorphism-6366f1.svg" alt="GUI" /></a>
+  <a href="#pixeldefence"><img src="https://img.shields.io/badge/PixelDefence-100%2F100%20Verified-00c853.svg" alt="PixelDefence" /></a>
+  <a href="#privilege-separation--kicksecure-architecture"><img src="https://img.shields.io/badge/Security-Hardened-red.svg" alt="Security" /></a>
+</p>
 
 </div>
 
 ---
 
+<a id="installation"></a>
 ## ⚡ Quick One-Line Install (SSH / Terminal)
 
 Copy and paste this single command into your terminal (use the `sysmaint` maintenance account on Kicksecure, or any `sudo` user):
@@ -29,10 +42,10 @@ sudo apt-get update -y && sudo apt-get install -y git curl && rm -rf /tmp/cyberb
 
 ## 📑 Table of Contents
 
-- [Quick One-Line Install](#-quick-one-line-install-ssh--terminal)
+- [Quick One-Line Install](#installation)
 - [Kicksecure Privilege Separation Architecture](#privilege-separation--kicksecure-architecture)
 - [Core Capabilities](#core-capabilities)
-  - [1. Browser Privacy & PixelDefence 100/100](#1-browser-privacy--pixeldefence-100100)
+  - [1. Browser Privacy & PixelDefence 100/100](#pixeldefence)
   - [2. USB Armory & Storage Vaults](#2-usb-armory--storage-vaults)
   - [3. Hardware & Listening Port Defense](#3-hardware--listening-port-defense)
   - [4. Network Privacy & VPN Route Verification](#4-network-privacy--vpn-route-verification)
@@ -40,12 +53,13 @@ sudo apt-get update -y && sudo apt-get install -y git curl && rm -rf /tmp/cyberb
   - [6. Tor Circuit Radar & Stream Isolation](#6-tor-circuit-radar--stream-isolation)
   - [7. Kernel Hardening & AppArmor Enforcer](#7-kernel-hardening--apparmor-enforcer)
   - [8. Emergency Killswitches & Anti-Forensic Sanitize](#8-emergency-killswitches--anti-forensic-sanitize)
-- [Inside the 14 Workspaces](#inside-the-14-workspaces)
+- [Inside the 14 Workspaces](#inside-the-workspace)
 - [Troubleshooting & Dependency Resolution](#troubleshooting--dependency-resolution)
 - [Development & Verification](#development--verification)
 
 ---
 
+<a id="privilege-separation--kicksecure-architecture"></a>
 ## Privilege Separation & Kicksecure Architecture
 
 Kicksecure strictly isolates administrative maintenance tasks (`sysmaint` account) from untrusted day-to-day computing (`user` account). CyberBreak embraces this security boundary:
@@ -86,28 +100,46 @@ Kicksecure strictly isolates administrative maintenance tasks (`sysmaint` accoun
 
 ## Core Capabilities
 
+<a id="pixeldefence"></a><a id="browser-privacy"></a>
 ### 1. Browser Privacy & Zero-Tracking Engine (PixelDefence 100/100)
 
-An elite, off-the-record titanium web browser with zero-tracking, anti-fingerprinting, and anti-leak super-shields:
+An elite, off-the-record titanium web browser with zero-tracking, anti-fingerprinting, and anti-leak super-shields engineered to defeat commercial trackers, behavioral profiling engines, and state-sponsored forensic scanners.
 
-- **100/100 Score on Live PixelDefence Check**: Passes all ten runtime privacy tests:
-  - **DNT / GPC Headers**: Automated transmission of `DNT: 1` and `Sec-GPC: 1`.
-  - **Cookie Sandbox**: Rejects all first-party and third-party persistent cookies and script-based cookie access.
-  - **Canvas Hash Protection**: Disables `toDataURL`, `toBlob`, and `getImageData` pixel extraction so trackers cannot construct canvas fingerprint hashes.
-  - **WebGL Shield**: Disables WebGL contexts, pixel reading, and graphics hardware profiling.
-  - **WebRTC & Worker Gate**: Blocks WebRTC peer connections and background Web Workers to eliminate local and public IP exposure.
-  - **Sensor & Device Access**: Denies camera, microphone, geolocation, battery, hardware concurrency, and network API queries.
-  - **AudioContext Fingerprinting Defense**: Blocks audio buffer extraction and normalizes sample rates.
-  - **Same-Host Isolation**: Restricts requests to the current origin; cross-origin tracking beacons and third-party CDNs are blocked.
+<div align="center">
+  <a href="https://pixeldefence.com/data-leaking-check/" target="_blank" rel="noopener noreferrer">
+    <img src="docs/images/pixeldefence.png" alt="PixelDefence 100/100 Well Protected Verification Score" width="88%" />
+  </a>
+  <p><em>Verified live audit results from <a href="https://pixeldefence.com/data-leaking-check/" target="_blank" rel="noopener noreferrer"><strong>PixelDefence Data Leaking Check</strong></a> — <strong>100 / 100 "Well Protected"</strong> (Highest Possible Security Rating).</em></p>
+</div>
+
+#### 🛡️ Live PixelDefence 100/100 Verified Breakdown
+
+PixelDefence is an aggressive public browser audit engine that interrogates every layer of your browser's runtime environment. CyberBreak passes every single test with zero compromises:
+
+| Audit Check | PixelDefence Test Objective | CyberBreak Defense Implementation | Result |
+|---|---|---|:---:|
+| **IP Exposure Shield** | Probes for WebRTC STUN/TURN IP leaks and network interface enumeration. | WebRTC `RTCPeerConnection`, `RTCDataChannel`, and ICE candidate gatherers are completely disabled at the engine level. Web Workers cannot initiate background socket connections. | **PASS (Hidden)** |
+| **Do Not Track & GPC** | Inspects whether non-consent tracking signals are broadcast to remote endpoints. | Automatically injects `DNT: 1` and `Sec-GPC: 1` (Global Privacy Control) headers into 100% of outgoing HTTP and HTTPS requests. | **PASS (Enabled ✓)** |
+| **Cookie & Storage Sandbox** | Attempts to write and persist session identifiers, tracking cookies, and supercookies. | Rejects 100% of first-party and third-party persistent cookies. Blocks JavaScript `document.cookie` DOM access, Service Worker caching, and IndexedDB storage jars. | **PASS (Blocked)** |
+| **WebGL & GPU Masking** | Queries `WEBGL_debug_renderer_info` to extract exact GPU chipsets, driver revisions, and graphics vendor. | Disables unmasked WebGL debug extensions and normalizes GPU vendor/renderer strings to prevent hardware device profiling. | **PASS (Masked)** |
+| **Canvas Fingerprint Block** | Forces canvas render calls to extract cryptographic image hashes across different font and GPU combinations. | Neutralizes `HTMLCanvasElement.toDataURL()`, `toBlob()`, and `CanvasRenderingContext2D.getImageData()` byte extraction. Checkers receive empty, spoofed, or denied responses, defeating canvas fingerprint hashes. | **PASS (Blocked)** |
+| **AudioContext Fingerprinting** | Analyzes audio rendering buffer decay and oscillator processing to generate unique audio hardware hashes. | Restricts `AudioContext` and `OfflineAudioContext` frequency analysis buffers and normalizes sample rates. | **PASS (Protected)** |
+| **Device Sensors & Concurrency** | Queries CPU cores, memory limits, battery status, device motion, cameras, and microphones. | Returns `null` or blocked states for camera, microphone, battery, network information, and sensor APIs (`navigator.mediaDevices`, `navigator.getBattery`). | **PASS (Denied)** |
+| **Strict Same-Host Isolation** | Scans for third-party tracking beacons, cross-origin telemetry scripts, and analytics CDNs. | Gating rules restrict network activity strictly to first-party endpoints. Third-party trackers and telemetry beacons are terminated before DNS resolution. | **PASS (Isolated)** |
+
+> **Run the Live Check**: You can verify CyberBreak anytime by clicking the **PixelDefence** button inside the browser toolbar, or by testing live at [https://pixeldefence.com/data-leaking-check/](https://pixeldefence.com/data-leaking-check/).
+
+#### ⚡ Browser Privacy Architecture & Controls
+
 - **VPN Killswitch Lock vs Direct Zero-Tracking Mode**:
-  - **VPN Lock OFF (Direct Mode)**: Allows instant browsing on any network with full anti-tracking, anti-fingerprinting, and cookie blocking shields active.
-  - **VPN Lock ON (Enforced Mode)**: Blocks web traffic unless an active, verified VPN tunnel route is present.
+  - **VPN Lock OFF (Direct Mode)**: Allows instant, ultra-fast browsing on any connection while keeping all 100/100 anti-fingerprinting, anti-cookie, and canvas shields fully active.
+  - **VPN Lock ON (Enforced Mode)**: Complete network killswitch gating. Pauses all web navigation unless an active, verified VPN tunnel route (`tun0`, `wg0`, `proton0`) is detected.
 - **Smart Address & Private Search Bar**:
-  - Automatically navigates to valid HTTPS domains (`duckduckgo.com`, `eff.org`).
-  - Search queries (e.g. `privacy tools`, `whoami`) seamlessly route to DuckDuckGo Private Search without tracking or cookies.
+  - Automatically navigates to valid HTTPS domains (`duckduckgo.com`, `pixeldefence.com`, `eff.org`).
+  - Search queries (e.g. `privacy fortress`, `whoami`) automatically route to DuckDuckGo Private Search without tracking or query leakage.
 - **Full Navigation Controls**: Back, Forward, Reload, Stop, and DuckDuckGo Home buttons.
-- **Quick Privacy Bookmarks**: One-click launch for DuckDuckGo, PixelDefence Leak Test, EFF Cover Your Tracks, Brave Search, and IPleak.net.
-- **Standalone Browser Window**: Dedicated pop-out privacy browser window for full-screen distraction-free browsing.
+- **Quick Privacy Bookmarks**: One-click instant launch for DuckDuckGo, PixelDefence Leak Test, EFF Cover Your Tracks, Brave Search, and IPleak.net.
+- **Standalone Browser Window**: Dedicated pop-out privacy browser window for distraction-free full-screen browsing.
 - **Multi-Browser Privacy Launcher**:
   - Generates an isolated Firefox profile (`~/.config/cyberbreak/browser_profile/`) configured with **49 Mozilla privacy directives**, including Enhanced Tracking Protection, resistFingerprinting, and zero disk caching.
   - Automatically detects and launches alternative privacy browsers (LibreWolf, Tor Browser, Brave, Chromium) in incognito/private modes.
@@ -202,7 +234,13 @@ An elite, military-grade storage encryption, anti-forensics, backup, and formatt
 
 ---
 
+<a id="inside-the-workspace"></a>
 ## Inside the 14 Workspaces
+
+<div align="center">
+  <img src="docs/images/overview.png" alt="CyberBreak PyQt6 Glassmorphism Dashboard Overview" width="92%" />
+  <p><em>CyberBreak glassmorphism desktop security dashboard on Kicksecure Linux — engineered exclusively by <strong>lilami only</strong>.</em></p>
+</div>
 
 | Workspace | Primary Defense Features |
 |---|---|
