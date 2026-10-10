@@ -197,6 +197,14 @@ An elite, military-grade storage encryption, anti-forensics, backup, and formatt
 
 ### 5. Device Identity & Hardware Spoofing
 
+- **👻 Ghost This Device (One-Click Full Identity Metamorphosis)**:
+  - **Enforced VPN Shielding**: Verifies an active encrypted VPN tunnel (`tun0`, `wg0`, `proton0`) before initiating identity rotation so local routers, ISP logging systems, and network gateways cannot observe or correlate the hardware transformation in progress.
+  - **All-Interface MAC Randomization**: Simultaneously down-links, randomizes hardware MAC addresses across all physical Ethernet and Wi-Fi adapters using `macchanger`, and restores links with fresh hardware identities.
+  - **Dynamic Hostname Mutation**: Generates cryptographically randomized workstation hostnames (`THINKPAD-...`, `DEBIAN-WS-...`, `WORKSTATION-...`) and updates `/etc/hostname` and `/etc/hosts`.
+  - **Machine-ID & D-Bus Invalidation**: Overwrites `/etc/machine-id` and `/var/lib/dbus/machine-id` with 128-bit cryptographic entropy tokens.
+  - **Timezone Standardization**: Enforces UTC timezone via `timedatectl` to eliminate browser clock and geographic fingerprinting.
+  - **Cache & Memory Scrub**: Drops kernel RAM pagecache and slab buffers (`drop_caches = 3`), flushes systemd-resolved DNS caches, and flushes ARP neighbor tables (`ip neigh flush all`).
+  - **Post-Transformation Notification**: Once cloaked, confirms: *"Your device is now ghost! All fingerprint data has been changed. You can now turn off your VPN if desired — we used it so nothing detects your device is a ghost."*
 - **MAC Address Randomization**: Changes MAC addresses across physical and wireless interfaces using `macchanger`.
 - **Hostname Scrambler**: Sets random system hostnames to prevent local network identification.
 - **Machine ID Regenerator**: Generates fresh `/etc/machine-id` and `/var/lib/dbus/machine-id` tokens.

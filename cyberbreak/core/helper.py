@@ -9,6 +9,7 @@ import subprocess
 from typing import List, Tuple
 
 ALLOWED_ACTIONS = [
+    "ghost-device",
     "mac-randomize",
     "hostname-randomize",
     "machine-id-reseed",
@@ -151,6 +152,110 @@ def action_timezone_utc(args: List[str]) -> int:
             print(f"ERROR: {e}", file=sys.stderr)
             return 1
     print("OK: Timezone locked to UTC")
+    return 0
+
+def action_ghost_device(args: List[str]) -> int:
+    import json
+    results = {}
+
+    # 1. Randomize MAC addresses across all physical/virtual network adapters
+    mac_results = {}
+    net_dir = "/sys/class/net"
+    if os.path.exists(net_dir):
+        for iface in os.listdir(net_dir):
+            if iface in ("lo",) or iface.startswith(("veth", "docker", "virbr", "br-")):
+                continue
+            run_cmd(["ip", "link", "set", "dev", iface, "down"])
+            code, out, _ = run_cmd(["macchanger", "-r", iface])
+            if code != 0:
+                rand_mac = "02:%02x:%02x:%02x:%02x:%02x" % tuple(secrets.token_bytes(5))
+                run_cmd(["ip", "link", "set", "dev", iface, "address", rand_mac])
+            run_cmd(["ip", "link", "set", "dev", iface, "up"])
+            run_cmd(["nmcli", "device", "reapply", iface])
+
+            addr_file = os.path.join(net_dir, iface, "address")
+            if os.path.exists(addr_file):
+                try:
+                    with open(addr_file, "r") as f:
+                        mac_results[iface] = f.read().strip()
+                except Exception:
+                    mac_results[iface] = "Randomized"
+            else:
+                mac_results[iface] = "Randomized"
+    results["mac_addresses"] = mac_results
+
+    # 2. Hostname randomization
+    prefixes = ["DESKTOP", "THINKPAD", "DEBIAN-WS", "WORKSTATION", "HOST", "KICKSECURE"]
+    suffix = secrets.token_hex(3).upper()
+    new_host = f"{secrets.choice(prefixes)}-{suffix}"
+    code, _, _ = run_cmd(["hostnamectl", "set-hostname", new_host])
+    if code != 0:
+        try:
+            with open("/etc/hostname", "w") as f:
+                f.write(new_host + "\n")
+        except Exception:
+            pass
+    try:
+        if os.path.exists("/etc/hosts"):
+            with open("/etc/hosts", "r") as f:
+                lines = f.readlines()
+            new_lines = []
+            found = False
+            for line in lines:
+                if line.startswith("127.0.1.1"):
+                    new_lines.append(f"127.0.1.1\t{new_host}\n")
+                    found = True
+                else:
+                    new_lines.append(line)
+            if not found:
+                new_lines.append(f"127.0.1.1\t{new_host}\n")
+            with open("/etc/hosts", "w") as f:
+                f.writelines(new_lines)
+    except Exception:
+        pass
+    results["hostname"] = new_host
+
+    # 3. Machine-ID and D-Bus ID reseed
+    new_id = secrets.token_hex(16)
+    try:
+        with open("/etc/machine-id", "w") as f:
+            f.write(new_id + "\n")
+        if os.path.exists("/var/lib/dbus/machine-id"):
+            with open("/var/lib/dbus/machine-id", "w") as f:
+                f.write(new_id + "\n")
+        results["machine_id"] = new_id
+    except Exception:
+        run_cmd(["systemd-machine-id-setup"])
+        results["machine_id"] = "Reseeded via systemd"
+
+    # 4. UTC timezone lock
+    code, _, _ = run_cmd(["timedatectl", "set-timezone", "UTC"])
+    if code != 0:
+        try:
+            if os.path.exists("/etc/localtime"):
+                os.remove("/etc/localtime")
+            os.symlink("/usr/share/zoneinfo/UTC", "/etc/localtime")
+        except Exception:
+            pass
+    results["timezone"] = "UTC"
+
+    # 5. Flush ARP / neighbor table
+    run_cmd(["ip", "neigh", "flush", "all"])
+
+    # 6. Flush DNS caches
+    run_cmd(["resolvectl", "flush-caches"])
+    run_cmd(["systemd-resolve", "--flush-caches"])
+    run_cmd(["nscd", "-i", "hosts"])
+
+    # 7. Drop RAM caches and memory buffers
+    try:
+        with open("/proc/sys/vm/drop_caches", "w") as f:
+            f.write("3\n")
+        results["ram_purged"] = True
+    except Exception:
+        results["ram_purged"] = False
+
+    print(f"OK: GHOST_COMPLETE:{json.dumps(results)}")
     return 0
 
 def action_firewall_strict(args: List[str]) -> int:
@@ -1055,6 +1160,7 @@ def main():
     args = sys.argv[2:]
 
     action_map = {
+        "ghost-device": action_ghost_device,
         "mac-randomize": action_mac_randomize,
         "hostname-randomize": action_hostname_randomize,
         "machine-id-reseed": action_machine_id_reseed,

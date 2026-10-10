@@ -278,6 +278,7 @@ class DashboardPage(QWidget):
         self.actions_grid.setSpacing(12)
         self._actions = []
         actions = (
+            ("Ghost this device", "Randomize hardware identity & fingerprints under VPN shield", "ghost", self.on_ghost_device, False),
             ("Purge RAM cache", "Release cached system memory", "layers", MetadataCleaner.purge_ram_cache, False),
             ("Harden kernel", "Apply recommended sysctl values", "shield", KernelHardening.apply_sysctl_hardening, False),
             ("Trim storage", "Discard unused SSD blocks", "usb", USBArmory.trim_drives, False),
@@ -322,7 +323,10 @@ class DashboardPage(QWidget):
         button.setCursor(Qt.CursorShape.PointingHandCursor)
         button.setStyleSheet(f"QPushButton {{ text-align: left; background: transparent; border: none; padding: 0; color: {'#ffadb9' if danger else '#f4f6ff'}; font-size: 12px; font-weight: 600; }} QPushButton:hover {{ color: {color}; }} QPushButton:disabled {{ color: #8291b0; }} QPushButton:focus {{ border-bottom: 1px solid {color}; }}")
         button.setToolTip(title)
-        button.clicked.connect(lambda checked=False, action=callback, label=title, control=button: self.run_action(action, label, control))
+        if title == "Ghost this device":
+            button.clicked.connect(lambda checked=False: self.on_ghost_device())
+        else:
+            button.clicked.connect(lambda checked=False, action=callback, label=title, control=button: self.run_action(action, label, control))
         frame.activated.connect(button.click)
         self._action_buttons.append(button)
         copy.addWidget(button)
@@ -543,3 +547,7 @@ class DashboardPage(QWidget):
         self.action_feedback.setToolTip(message)
         if success:
             self.run_audit()
+
+    def on_ghost_device(self):
+        from cyberbreak.ui.widgets.ghost_dialog import run_ghost_workflow
+        run_ghost_workflow(self, on_complete_callback=self.run_audit)
