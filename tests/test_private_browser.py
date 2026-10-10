@@ -55,6 +55,37 @@ class UrlPolicyTests(unittest.TestCase):
         self.assertEqual(format_search_or_url("whoami"), "https://duckduckgo.com/?q=whoami&kp=-2&kn=1")
         self.assertIsNone(format_search_or_url(""))
 
+    def test_desktop_integrator_browser_app(self):
+        import tempfile
+        from unittest.mock import patch
+        from cyberbreak.core.desktop_integrator import DesktopIntegrator
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            with patch("os.path.expanduser", return_value=tmpdir):
+                success, msg = DesktopIntegrator.install_browser_app()
+                self.assertTrue(success)
+                self.assertIn("CyberBreak Browser installed", msg)
+                
+                desktop_file = os.path.join(tmpdir, "Desktop", "cyberbreak-browser.desktop")
+                user_app_file = os.path.join(tmpdir, ".local", "share", "applications", "cyberbreak-browser.desktop")
+                
+                self.assertTrue(os.path.exists(desktop_file))
+                self.assertTrue(os.path.exists(user_app_file))
+                
+                with open(desktop_file, "r") as f:
+                    content = f.read()
+                self.assertIn("Name=CyberBreak Private Browser", content)
+                self.assertIn("Exec=/usr/local/bin/cyberbreak --browser %u", content)
+                self.assertIn("Categories=Network;WebBrowser;Security;", content)
+
+    def test_browser_guard_fallback_and_pending_url(self):
+        guard = BrowserGuard()
+        self.assertIsNone(guard.view)
+        # Navigating while engine unavailable stores target in pending_url
+        res = guard.navigate("https://duckduckgo.com")
+        self.assertFalse(res)
+        self.assertEqual(guard.pending_url, "https://duckduckgo.com/")
+
 
 @unittest.skipUnless(PYQT6_AVAILABLE and WEBENGINE_AVAILABLE, "QtWebEngine unavailable: " + str(WEBENGINE_ERROR))
 class BrowserProtectionTests(unittest.TestCase):

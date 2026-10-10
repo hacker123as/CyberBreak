@@ -19,6 +19,21 @@ Keywords=security;privacy;spoofer;killswitch;tor;leak;firewall;kicksecure;
 X-Kicksecure-Security-Level=Hardened
 """
 
+    BROWSER_DESKTOP_ENTRY_CONTENT = """[Desktop Entry]
+Name=CyberBreak Private Browser
+GenericName=Zero-Tracking Web Browser
+Comment=Hardened Titanium Web Browser with 100/100 PixelDefence Anti-Fingerprinting (By lilami only)
+Exec=/usr/local/bin/cyberbreak --browser %u
+Icon=cyberbreak
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;Security;
+StartupNotify=true
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
+Keywords=browser;privacy;zero-tracking;pixeldefence;webrtc;canvas;fingerprint;
+X-Kicksecure-Security-Level=Hardened
+"""
+
     @staticmethod
     def get_status() -> Dict[str, bool]:
         home = os.path.expanduser("~")
@@ -102,3 +117,56 @@ X-Kicksecure-Security-Level=Hardened
                 os.remove(autostart_file)
             log("CyberBreak removed from autostart", "OK")
             return True, "Autostart Disabled"
+
+    @staticmethod
+    def install_browser_app() -> Tuple[bool, str]:
+        home = os.path.expanduser("~")
+        desktop_dir = os.path.join(home, "Desktop")
+        user_apps_dir = os.path.join(home, ".local", "share", "applications")
+        
+        successes = []
+        errors = []
+        
+        # 1. Desktop shortcut
+        try:
+            os.makedirs(desktop_dir, exist_ok=True)
+            desktop_file = os.path.join(desktop_dir, "cyberbreak-browser.desktop")
+            with open(desktop_file, "w") as f:
+                f.write(DesktopIntegrator.BROWSER_DESKTOP_ENTRY_CONTENT)
+            os.chmod(desktop_file, 0o755)
+            run_sync(f"gio set '{desktop_file}' metadata::trusted true")
+            successes.append("Desktop")
+            log(f"Browser desktop launcher created at {desktop_file}", "OK")
+        except Exception as e:
+            errors.append(f"Desktop: {e}")
+            log(f"Failed to create browser desktop launcher: {e}", "WARN")
+
+        # 2. User Application Grid
+        try:
+            os.makedirs(user_apps_dir, exist_ok=True)
+            user_app_file = os.path.join(user_apps_dir, "cyberbreak-browser.desktop")
+            with open(user_app_file, "w") as f:
+                f.write(DesktopIntegrator.BROWSER_DESKTOP_ENTRY_CONTENT)
+            os.chmod(user_app_file, 0o644)
+            run_sync(f"update-desktop-database '{user_apps_dir}'")
+            successes.append("Applications Menu")
+            log(f"Browser registered in user applications: {user_app_file}", "OK")
+        except Exception as e:
+            errors.append(f"Apps Menu: {e}")
+            log(f"Failed to register user app grid launcher: {e}", "WARN")
+
+        # 3. System-wide /usr/share/applications (if running as root)
+        if hasattr(os, "geteuid") and os.geteuid() == 0:
+            try:
+                sys_file = "/usr/share/applications/cyberbreak-browser.desktop"
+                with open(sys_file, "w") as f:
+                    f.write(DesktopIntegrator.BROWSER_DESKTOP_ENTRY_CONTENT)
+                os.chmod(sys_file, 0o644)
+                run_sync("update-desktop-database")
+                successes.append("System Grid")
+            except Exception as e:
+                log(f"Failed to register /usr/share/applications browser launcher: {e}", "WARN")
+
+        if successes:
+            return True, f"CyberBreak Browser installed to {', '.join(successes)}!"
+        return False, f"Failed to install browser launcher: {'; '.join(errors)}"

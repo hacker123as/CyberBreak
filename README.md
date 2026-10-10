@@ -131,15 +131,25 @@ PixelDefence is an aggressive public browser audit engine that interrogates ever
 
 #### ⚡ Browser Privacy Architecture & Controls
 
+- **1-Click QtWebEngine Auto-Installer**:
+  - If `PyQt6-WebEngine` is not detected in your Python environment, the browser presents a 1-click **`[ ⚡ Install QtWebEngine Browser Engine ]`** button.
+  - Automatically provisions native bindings via the scoped privileged helper (APT/Pip/Pacman/DNF) and **hot-reloads the live browser session** dynamically without requiring an application restart.
+- **One-Click Standalone Desktop App Installation**:
+  - Click **`[ 📥 Install as App ]`** directly from the browser window or fallback screen.
+  - Generates verified `.desktop` launchers on your Desktop (`~/Desktop/cyberbreak-browser.desktop`) and Applications Grid (`~/.local/share/applications/cyberbreak-browser.desktop`), allowing you to launch the zero-tracking private browser directly as an independent app (`cyberbreak --browser [URL]`).
+- **100/100 Shields Live Inspector**:
+  - Click the **`[ 🛡️ 100/100 Shields Active ]`** pill badge to inspect active anti-tracking countermeasures: Anti-Canvas readback denial, WebGL context masking, WebRTC STUN/TURN leak armor, AudioContext frequency randomization, generic hardware spoofing, and strict first-party network isolation.
+- **Ephemeral RAM-Only Profile & Instant New Identity**:
+  - All cookies, cache, and DOM storage are held exclusively in volatile RAM—never written to disk.
+  - Click **`[ 🧹 New Identity ]`** to instantly wipe all session memory, flush socket pools, and generate a pristine anonymous identity.
 - **VPN Killswitch Lock vs Direct Zero-Tracking Mode**:
   - **VPN Lock OFF (Direct Mode)**: Allows instant, ultra-fast browsing on any connection while keeping all 100/100 anti-fingerprinting, anti-cookie, and canvas shields fully active.
   - **VPN Lock ON (Enforced Mode)**: Complete network killswitch gating. Pauses all web navigation unless an active, verified VPN tunnel route (`tun0`, `wg0`, `proton0`) is detected.
 - **Smart Address & Private Search Bar**:
   - Automatically navigates to valid HTTPS domains (`duckduckgo.com`, `pixeldefence.com`, `eff.org`).
   - Search queries (e.g. `privacy fortress`, `whoami`) automatically route to DuckDuckGo Private Search without tracking or query leakage.
-- **Full Navigation Controls**: Back, Forward, Reload, Stop, and DuckDuckGo Home buttons.
-- **Quick Privacy Bookmarks**: One-click instant launch for DuckDuckGo, PixelDefence Leak Test, EFF Cover Your Tracks, Brave Search, and IPleak.net.
-- **Standalone Browser Window**: Dedicated pop-out privacy browser window for distraction-free full-screen browsing.
+- **Full Navigation Controls**: Back (`◀`), Forward (`▶`), Reload (`↻`), DuckDuckGo Home (`🏠`).
+- **Quick Privacy Bookmarks**: One-click instant launch chips for DuckDuckGo, PixelDefence Leak Test, EFF Cover Your Tracks, Brave Search, IPleak.net, and Mullvad Connection Check.
 - **Multi-Browser Privacy Launcher**:
   - Generates an isolated Firefox profile (`~/.config/cyberbreak/browser_profile/`) configured with **49 Mozilla privacy directives**, including Enhanced Tracking Protection, resistFingerprinting, and zero disk caching.
   - Automatically detects and launches alternative privacy browsers (LibreWolf, Tor Browser, Brave, Chromium) in incognito/private modes.

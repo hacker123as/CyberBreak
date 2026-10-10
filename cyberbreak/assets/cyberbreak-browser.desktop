@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=CyberBreak Private Browser
+GenericName=Zero-Tracking Web Browser
+Comment=Hardened Titanium Web Browser with 100/100 PixelDefence Anti-Fingerprinting (By lilami only)
+Exec=/usr/local/bin/cyberbreak --browser %u
+Icon=cyberbreak
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;Security;
+StartupNotify=true
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
+Keywords=browser;privacy;zero-tracking;pixeldefence;webrtc;canvas;fingerprint;
+X-Kicksecure-Security-Level=Hardened

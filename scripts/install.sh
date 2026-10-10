@@ -248,7 +248,7 @@ if command -v gtk-update-icon-cache >/dev/null 2>&1; then
     $SUDO_CMD gtk-update-icon-cache -f -t /usr/share/icons/hicolor 2>/dev/null || true
 fi
 
-echo -e "${CYAN}[*] Registering system-wide Application Grid launcher...${NC}"
+echo -e "${CYAN}[*] Registering system-wide Application Grid launchers...${NC}"
 $SUDO_CMD tee /usr/share/applications/cyberbreak.desktop > /dev/null << 'EOF'
 [Desktop Entry]
 Name=CyberBreak
@@ -264,6 +264,23 @@ Keywords=security;privacy;spoofer;killswitch;tor;leak;firewall;kicksecure;
 X-Kicksecure-Security-Level=Hardened
 EOF
 $SUDO_CMD chmod 644 /usr/share/applications/cyberbreak.desktop
+
+$SUDO_CMD tee /usr/share/applications/cyberbreak-browser.desktop > /dev/null << 'EOF'
+[Desktop Entry]
+Name=CyberBreak Private Browser
+GenericName=Zero-Tracking Web Browser
+Comment=Hardened Titanium Web Browser with 100/100 PixelDefence Anti-Fingerprinting (By lilami only)
+Exec=/usr/local/bin/cyberbreak --browser %u
+Icon=cyberbreak
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;Security;
+StartupNotify=true
+MimeType=x-scheme-handler/http;x-scheme-handler/https;text/html;
+Keywords=browser;privacy;zero-tracking;pixeldefence;webrtc;canvas;fingerprint;
+X-Kicksecure-Security-Level=Hardened
+EOF
+$SUDO_CMD chmod 644 /usr/share/applications/cyberbreak-browser.desktop
 
 if command -v update-desktop-database >/dev/null 2>&1; then
     $SUDO_CMD update-desktop-database 2>/dev/null || true
@@ -283,15 +300,17 @@ for user_home in /home/*; do
             $SUDO_CMD chown -R "$u:$u" "${user_home}/.config" 2>/dev/null || true
             $SUDO_CMD chmod 700 "$user_keys" "$user_headers" "$user_backups" 2>/dev/null || true
 
-            # Deploy desktop launcher
+            # Deploy desktop launchers
             desktop_dir="${user_home}/Desktop"
             $SUDO_CMD mkdir -p "$desktop_dir"
             $SUDO_CMD cp /usr/share/applications/cyberbreak.desktop "${desktop_dir}/cyberbreak.desktop"
-            $SUDO_CMD chmod 755 "${desktop_dir}/cyberbreak.desktop"
-            $SUDO_CMD chown "$u:$u" "${desktop_dir}/cyberbreak.desktop"
-            echo -e "    -> Placed trusted shortcut on ${BOLD}${desktop_dir}/cyberbreak.desktop${NC}"
+            $SUDO_CMD cp /usr/share/applications/cyberbreak-browser.desktop "${desktop_dir}/cyberbreak-browser.desktop"
+            $SUDO_CMD chmod 755 "${desktop_dir}/cyberbreak.desktop" "${desktop_dir}/cyberbreak-browser.desktop"
+            $SUDO_CMD chown "$u:$u" "${desktop_dir}/cyberbreak.desktop" "${desktop_dir}/cyberbreak-browser.desktop"
+            echo -e "    -> Placed trusted shortcuts on ${BOLD}${desktop_dir}/${NC}"
             if command -v gio >/dev/null 2>&1; then
                 su - "$u" -c "gio set '${desktop_dir}/cyberbreak.desktop' metadata::trusted true" 2>/dev/null || true
+                su - "$u" -c "gio set '${desktop_dir}/cyberbreak-browser.desktop' metadata::trusted true" 2>/dev/null || true
             fi
         fi
     fi
@@ -299,7 +318,8 @@ done
 
 $SUDO_CMD mkdir -p /etc/skel/Desktop
 $SUDO_CMD cp /usr/share/applications/cyberbreak.desktop /etc/skel/Desktop/cyberbreak.desktop
-$SUDO_CMD chmod 755 /etc/skel/Desktop/cyberbreak.desktop
+$SUDO_CMD cp /usr/share/applications/cyberbreak-browser.desktop /etc/skel/Desktop/cyberbreak-browser.desktop
+$SUDO_CMD chmod 755 /etc/skel/Desktop/cyberbreak.desktop /etc/skel/Desktop/cyberbreak-browser.desktop
 
 echo -e "\n${GREEN}${BOLD}[SUCCESS] CyberBreak installed and configured successfully for Kicksecure!${NC}"
 echo -e "${CYAN}----------------------------------------------------------------------${NC}"

@@ -18,8 +18,19 @@ def main():
     if os.path.exists(icon_path):
         app.setWindowIcon(QIcon(icon_path))
 
-    window = MainWindow()
-    window.show()
+    if "--browser" in sys.argv or "--private-browser" in sys.argv:
+        from cyberbreak.ui.widgets.private_browser import StandaloneBrowserWindow
+        initial_url = "https://duckduckgo.com"
+        for arg in sys.argv[1:]:
+            if arg.startswith("http://") or arg.startswith("https://"):
+                initial_url = arg
+                break
+        window = StandaloneBrowserWindow(initial_url=initial_url)
+        window.show()
+    else:
+        from cyberbreak.ui.main_window import MainWindow
+        window = MainWindow()
+        window.show()
 
     sys.exit(app.exec())
 

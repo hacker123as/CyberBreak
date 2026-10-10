@@ -9,6 +9,7 @@ import subprocess
 from typing import List, Tuple
 
 ALLOWED_ACTIONS = [
+    "install-webengine",
     "ghost-device",
     "mac-randomize",
     "hostname-randomize",
@@ -153,6 +154,30 @@ def action_timezone_utc(args: List[str]) -> int:
             return 1
     print("OK: Timezone locked to UTC")
     return 0
+
+def action_install_webengine(args: List[str]) -> int:
+    if os.path.exists("/usr/bin/apt-get"):
+        run_cmd(["apt-get", "update", "-y"])
+        code, out, err = run_cmd(["apt-get", "install", "-y", "python3-pyqt6.qtwebengine", "python3-pip", "python3-pyqt6.qtsvg"])
+        if code == 0:
+            print("OK: python3-pyqt6.qtwebengine installed successfully via apt")
+            return 0
+    code, out, err = run_cmd(["python3", "-m", "pip", "install", "PyQt6-WebEngine", "PyQt6-QtSvg", "--break-system-packages"])
+    if code == 0:
+        print("OK: PyQt6-WebEngine installed successfully via pip")
+        return 0
+    if os.path.exists("/usr/bin/pacman"):
+        code, out, err = run_cmd(["pacman", "-Sy", "--noconfirm", "python-pyqt6-webengine"])
+        if code == 0:
+            print("OK: python-pyqt6-webengine installed via pacman")
+            return 0
+    if os.path.exists("/usr/bin/dnf"):
+        code, out, err = run_cmd(["dnf", "install", "-y", "python3-pyqt6-webengine"])
+        if code == 0:
+            print("OK: python3-pyqt6-webengine installed via dnf")
+            return 0
+    print(f"ERROR: Failed installing PyQt6-WebEngine: {err or out}", file=sys.stderr)
+    return 1
 
 def action_ghost_device(args: List[str]) -> int:
     import json
@@ -1160,6 +1185,7 @@ def main():
     args = sys.argv[2:]
 
     action_map = {
+        "install-webengine": action_install_webengine,
         "ghost-device": action_ghost_device,
         "mac-randomize": action_mac_randomize,
         "hostname-randomize": action_hostname_randomize,
