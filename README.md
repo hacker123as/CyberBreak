@@ -144,8 +144,12 @@ An elite, military-grade storage encryption, anti-forensics, backup, and formatt
   - Detects WAN exposure (bound to `0.0.0.0` or wildcard `*`).
   - **Single-Port Killswitch**: Blocks individual ports using iptables and stops the associated process.
   - **Responsive Table Layout**: Automatically adjusts across compact laptops, high-DPI displays, and 4K monitors with no clipped or squished buttons.
-- **USBGuard Peripheral Management**: Authorizes or blocks connected USB peripherals (HID keyboards, storage drives, cameras) by device ID and bus address.
-- **Kernel Storage Driver Lock**: Disables USB storage kernel modules (`usb_storage`, `uas`) on demand.
+- **USBGuard & Sysfs Peripheral Management**:
+  - **Intelligent HID Input Protection**: When locking down USB ports, human interface devices (mice, keyboards, touchpads, trackballs, wireless receiver dongles, and root hubs) are automatically detected and kept authorized. Your mouse and keyboard never drop or disconnect.
+  - **Interface Endpoint Filtering**: Automatically distinguishes physical devices from sysfs interface endpoints (`1-1:1.0`), eliminating phantom devices that cannot be authorized.
+  - **Hierarchical Hub Chain Authorization**: Automatically walks up and authorizes the parent root controller (`usbX`) and upstream hub chains (`1-1.2` -> `1-1`) before authorizing a child device, ensuring nested peripherals authorize instantly.
+  - **Emergency USB Restore (Unbrick All)**: A dedicated one-click panic recovery action in the UI that immediately restores all USB root controllers, re-authorizes every connected device, wipes module blacklists, unblocks USBGuard devices, and triggers a PCI bus rescan.
+- **Kernel Storage Driver Lock**: Disables USB storage kernel modules (`usb_storage`, `uas`) on demand with clean rollback.
 - **Hardware Sensor Lockdown**: Controls camera (`uvcvideo`), microphone capture, and Bluetooth radios (`rfkill`).
 
 ---

@@ -13,11 +13,13 @@ class HardwareManager:
             return devices
 
         for entry in sorted(os.listdir(base_dir)):
+            # Skip interface endpoints (e.g. 1-1:1.0) - only enumerate real USB devices
+            if ":" in entry:
+                continue
 
             dev_path = os.path.join(base_dir, entry)
             if not os.path.isdir(dev_path):
                 continue
-
 
             vendor_path = os.path.join(dev_path, "idVendor")
             product_path = os.path.join(dev_path, "idProduct")
@@ -38,8 +40,8 @@ class HardwareManager:
             is_root_hub = entry.startswith("usb")
             is_authorized = (auth_val == "1")
 
-
             dev_type = HardwareManager._determine_device_type(dev_path, is_root_hub, product_name)
+            is_hid = (dev_type == "HID / INPUT")
 
             devices.append({
                 "dev_id": entry,
@@ -53,6 +55,7 @@ class HardwareManager:
                 "speed": f"{speed} Mbps" if speed.isdigit() else speed,
                 "authorized": is_authorized,
                 "is_root_hub": is_root_hub,
+                "is_hid": is_hid,
                 "type": dev_type
             })
 
@@ -85,7 +88,6 @@ class HardwareManager:
         if any(w in name_lower for w in ("wireless", "wifi", "802.11", "ethernet", "lan", "bluetooth")):
             return "NETWORK / COMM"
 
-
         for iface_dir in glob.glob(os.path.join(dev_path, "*:*")):
             class_path = os.path.join(iface_dir, "bInterfaceClass")
             if os.path.exists(class_path):
@@ -105,7 +107,12 @@ class HardwareManager:
     def set_usb_lockdown(enable: bool) -> Tuple[bool, str]:
         action = "ENABLING BadUSB defense & deep port lockdown" if enable else "DISABLING USB port lockdown"
         log(action, "HW")
-        code, out, err = run_privileged("usb-lockdown", "1" if enable else "0")
+        if enable:
+            code, out, err = run_privileged("usb-lockdown", "1")
+        else:
+            code, out, err = run_privileged("usb-unlock")
+            if code != 0:
+                code, out, err = run_privileged("usb-lockdown", "0")
         if code == 0:
             status_str = f"USB lockdown {'active' if enable else 'disabled'}"
             log(status_str, "OK")
@@ -113,6 +120,16 @@ class HardwareManager:
         else:
             log(f"USB lockdown failed: {err or out}", "ERR")
             return False, err or out
+
+    @staticmethod
+    def emergency_restore_usb() -> Tuple[bool, str]:
+        log("EMERGENCY RESTORE: Unlocking all USB controllers and peripherals", "HW")
+        code, out, err = run_privileged("usb-unlock")
+        run_privileged("usb-storage-block", "0")
+        if code == 0:
+            log("All USB ports and peripherals restored", "OK")
+            return True, "All USB ports and peripherals restored successfully"
+        return False, err or out
 
     @staticmethod
     def set_device_authorization(dev_id: str, authorize: bool) -> Tuple[bool, str]:

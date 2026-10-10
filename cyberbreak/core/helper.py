@@ -264,50 +264,56 @@ def action_firewall_reset(args: List[str]) -> int:
     print("OK: Standard firewall default policy restored")
     return 0
 
+def is_hid_or_critical_device(dev_path: str) -> bool:
+    dev_name = os.path.basename(dev_path)
+    if dev_name.startswith("usb"):
+        return True
+
+    dev_class_file = os.path.join(dev_path, "bDeviceClass")
+    if os.path.exists(dev_class_file):
+        try:
+            with open(dev_class_file, "r") as f:
+                cls = f.read().strip()
+                if cls in ("03", "09"):
+                    return True
+        except Exception:
+            pass
+
+    for prop in ("product", "manufacturer"):
+        prop_file = os.path.join(dev_path, prop)
+        if os.path.exists(prop_file):
+            try:
+                with open(prop_file, "r") as f:
+                    txt = f.read().lower()
+                    if any(w in txt for w in ("mouse", "pointer", "trackball", "touchpad", "keyboard", "hid", "hub", "receiver", "dongle")):
+                        return True
+            except Exception:
+                pass
+
+    if os.path.exists(os.path.join(dev_path, "input")) or glob.glob(os.path.join(dev_path, "input*")):
+        return True
+
+    for iface in glob.glob(os.path.join(dev_path, "*:*")):
+        class_file = os.path.join(iface, "bInterfaceClass")
+        if os.path.exists(class_file):
+            try:
+                with open(class_file, "r") as f:
+                    if f.read().strip() == "03":
+                        return True
+            except Exception:
+                pass
+        if os.path.exists(os.path.join(iface, "input")):
+            return True
+
+    return False
+
 def action_usb_lockdown(args: List[str]) -> int:
+    if args and args[0] == "0":
+        return action_usb_unlock(args)
 
     controllers = glob.glob("/sys/bus/usb/devices/usb*")
     for ctrl in controllers:
-        auth_file = os.path.join(ctrl, "authorized_default")
-        if os.path.exists(auth_file):
-            try:
-                with open(auth_file, "w") as f:
-                    f.write("0")
-            except Exception:
-                pass
-
-
-    devices = glob.glob("/sys/bus/usb/devices/[0-9]*")
-    deauth_count = 0
-    for dev in devices:
-        auth_file = os.path.join(dev, "authorized")
-        if os.path.exists(auth_file):
-            try:
-                with open(auth_file, "w") as f:
-                    f.write("0")
-                deauth_count += 1
-            except Exception:
-                pass
-
-
-    try:
-        os.makedirs("/etc/modprobe.d", exist_ok=True)
-        with open("/etc/modprobe.d/cyberbreak-usb-lock.conf", "w") as f:
-            f.write("# CyberBreak USB Storage Lockdown\nblacklist usb_storage\nblacklist uas\ninstall usb-storage /bin/true\ninstall uas /bin/true\n")
-    except Exception:
-        pass
-    run_cmd(["modprobe", "-r", "uas", "usb-storage"])
-
-
-    run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "block"])
-
-    print(f"OK: Deep USB lockdown enabled ({len(controllers)} root controllers, {deauth_count} devices isolated)")
-    return 0
-
-def action_usb_unlock(args: List[str]) -> int:
-    controllers = glob.glob("/sys/bus/usb/devices/usb*")
-    for ctrl in controllers:
-        auth_file = os.path.join(ctrl, "authorized_default")
+        auth_file = os.path.join(ctrl, "authorized")
         if os.path.exists(auth_file):
             try:
                 with open(auth_file, "w") as f:
@@ -316,8 +322,50 @@ def action_usb_unlock(args: List[str]) -> int:
                 pass
 
     devices = glob.glob("/sys/bus/usb/devices/[0-9]*")
+    deauth_count = 0
+    protected_count = 0
+    for dev in devices:
+        if ":" in os.path.basename(dev):
+            continue
+        auth_file = os.path.join(dev, "authorized")
+        if not os.path.exists(auth_file):
+            continue
+
+        if is_hid_or_critical_device(dev):
+            try:
+                with open(auth_file, "w") as f:
+                    f.write("1")
+                protected_count += 1
+            except Exception:
+                pass
+        else:
+            try:
+                with open(auth_file, "w") as f:
+                    f.write("0")
+                deauth_count += 1
+            except Exception:
+                pass
+
+    print(f"OK: USB lockdown active ({deauth_count} non-input devices blocked, {protected_count} mouse/keyboard/hub devices protected)")
+    return 0
+
+def action_usb_unlock(args: List[str]) -> int:
+    controllers = glob.glob("/sys/bus/usb/devices/usb*")
+    for ctrl in controllers:
+        for fname in ("authorized_default", "authorized"):
+            auth_file = os.path.join(ctrl, fname)
+            if os.path.exists(auth_file):
+                try:
+                    with open(auth_file, "w") as f:
+                        f.write("1")
+                except Exception:
+                    pass
+
+    devices = glob.glob("/sys/bus/usb/devices/[0-9]*")
     auth_count = 0
     for dev in devices:
+        if ":" in os.path.basename(dev):
+            continue
         auth_file = os.path.join(dev, "authorized")
         if os.path.exists(auth_file):
             try:
@@ -327,13 +375,29 @@ def action_usb_unlock(args: List[str]) -> int:
             except Exception:
                 pass
 
-    if os.path.exists("/etc/modprobe.d/cyberbreak-usb-lock.conf"):
+    conf_path = "/etc/modprobe.d/cyberbreak-usb-lock.conf"
+    if os.path.exists(conf_path):
         try:
-            os.remove("/etc/modprobe.d/cyberbreak-usb-lock.conf")
+            os.remove(conf_path)
         except Exception:
             pass
 
+    run_cmd(["modprobe", "-a", "usb-storage", "uas"])
     run_cmd(["usbguard", "set-parameter", "InsertedDevicePolicy", "apply-policy"])
+    code, out, _ = run_cmd(["usbguard", "list-devices", "-b"])
+    if code == 0 and out:
+        for line in out.strip().split("\n"):
+            parts = line.split(":", 1)
+            if parts and parts[0].strip().isdigit():
+                run_cmd(["usbguard", "allow-device", parts[0].strip()])
+
+    for pci_rescan in glob.glob("/sys/bus/pci/rescan"):
+        try:
+            with open(pci_rescan, "w") as f:
+                f.write("1\n")
+        except Exception:
+            pass
+
     print(f"OK: USB ports and devices restored ({len(controllers)} controllers, {auth_count} devices authorized)")
     return 0
 
@@ -342,21 +406,63 @@ def action_usb_device_auth(args: List[str]) -> int:
         print("ERROR: Device ID and auth state (1/0) required", file=sys.stderr)
         return 2
     dev_id, val = args[0], args[1]
-    if not re.match(r"^[a-zA-Z0-9_\-\.]+$", dev_id):
+    if not re.match(r"^[a-zA-Z0-9_\-\.:]+$", dev_id):
         print(f"ERROR: Invalid device ID: '{dev_id}'", file=sys.stderr)
         return 3
-    auth_path = f"/sys/bus/usb/devices/{dev_id}/authorized"
+
+    if ":" in dev_id:
+        dev_id = dev_id.split(":")[0]
+
+    target_dir = f"/sys/bus/usb/devices/{dev_id}"
+    auth_path = f"{target_dir}/authorized"
     if not os.path.exists(auth_path):
         print(f"ERROR: Device sysfs node does not exist: {auth_path}", file=sys.stderr)
         return 4
+
+    if val == "1":
+        bus_match = re.match(r"^([0-9]+)-", dev_id)
+        if bus_match:
+            ctrl_auth = f"/sys/bus/usb/devices/usb{bus_match.group(1)}/authorized"
+            if os.path.exists(ctrl_auth):
+                try:
+                    with open(ctrl_auth, "w") as f:
+                        f.write("1")
+                except Exception:
+                    pass
+
+        if "." in dev_id:
+            parent_id = dev_id.rsplit(".", 1)[0]
+            while parent_id:
+                p_auth = f"/sys/bus/usb/devices/{parent_id}/authorized"
+                if os.path.exists(p_auth):
+                    try:
+                        with open(p_auth, "w") as f:
+                            f.write("1")
+                    except Exception:
+                        pass
+                if "." in parent_id:
+                    parent_id = parent_id.rsplit(".", 1)[0]
+                else:
+                    break
+
     try:
         with open(auth_path, "w") as f:
             f.write("1" if val == "1" else "0")
-        print(f"OK: USB device {dev_id} authorized={val}")
-        return 0
     except Exception as e:
         print(f"ERROR: Failed writing authorized node: {e}", file=sys.stderr)
         return 5
+
+    if val == "1":
+        code, out, _ = run_cmd(["usbguard", "list-devices"])
+        if code == 0 and out:
+            for line in out.strip().split("\n"):
+                if f"at {dev_id}" in line or dev_id in line:
+                    parts = line.split(":", 1)
+                    if parts and parts[0].strip().isdigit():
+                        run_cmd(["usbguard", "allow-device", parts[0].strip()])
+
+    print(f"OK: USB device {dev_id} authorized={val}")
+    return 0
 
 def action_usb_storage_block(args: List[str]) -> int:
     block = args[0] == "1" if args else True
@@ -365,7 +471,7 @@ def action_usb_storage_block(args: List[str]) -> int:
         try:
             os.makedirs("/etc/modprobe.d", exist_ok=True)
             with open(conf_path, "w") as f:
-                f.write("blacklist usb_storage\nblacklist uas\ninstall usb-storage /bin/true\ninstall uas /bin/true\n")
+                f.write("# CyberBreak USB Storage Block\nblacklist usb_storage\nblacklist uas\ninstall usb-storage /bin/true\ninstall uas /bin/true\n")
         except Exception as e:
             print(f"ERROR: {e}", file=sys.stderr)
             return 1
@@ -386,8 +492,8 @@ def action_usb_storage_block(args: List[str]) -> int:
                 os.remove(conf_path)
             except Exception:
                 pass
-        run_cmd(["modprobe", "usb-storage"])
-        print("OK: USB mass storage drivers unblocked")
+        run_cmd(["modprobe", "-a", "usb-storage", "uas"])
+        print("OK: USB mass storage drivers unblocked and loaded")
         return 0
 
 def action_port_block(args: List[str]) -> int:

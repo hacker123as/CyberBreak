@@ -92,6 +92,12 @@ class USBGuardPage(QWidget):
         self.btn_storage_block.setObjectName('SecondaryButton')
         self.btn_storage_block.clicked.connect(self.toggle_storage_driver)
         ctrl_bar.addWidget(self.btn_storage_block)
+        self.btn_emergency_restore = QPushButton('Emergency restore USB (Unbrick all)')
+        self.btn_emergency_restore.setIcon(icon('refresh'))
+        self.btn_emergency_restore.setObjectName('PanicButton')
+        self.btn_emergency_restore.setToolTip('Force-authorizes all USB controllers, root hubs, mice, keyboards, and unblocks drivers')
+        self.btn_emergency_restore.clicked.connect(self.on_emergency_restore)
+        ctrl_bar.addWidget(self.btn_emergency_restore)
         ctrl_bar.addStretch()
         tab_layout.addLayout(ctrl_bar)
         tbl_label = QLabel('Connected USB devices')
@@ -272,12 +278,22 @@ class USBGuardPage(QWidget):
             self.usb_table.setItem(row, 5, status_item)
             dev_id = dev['dev_id']
             auth_now = dev['authorized']
-            btn = QPushButton('BLOCK' if auth_now else 'AUTHORIZE')
-            btn.setIcon(icon('lock', size=14))
-            btn.setObjectName('PanicButton' if auth_now else 'OutlineButton')
-            btn.setMinimumWidth(110)
-            btn.setFixedHeight(28)
-            btn.clicked.connect(lambda checked, d=dev_id, a=not auth_now: self.on_toggle_device_auth(d, a))
+            is_hid = dev.get('is_hid', False)
+            if is_hid:
+                btn = QPushButton('PROTECTED')
+                btn.setIcon(icon('check', size=14))
+                btn.setObjectName('OutlineButton')
+                btn.setToolTip('Active Human Interface Device (Mouse / Keyboard). Protected from deauthorization to prevent lockout.')
+                btn.setMinimumWidth(110)
+                btn.setFixedHeight(28)
+                btn.setEnabled(False)
+            else:
+                btn = QPushButton('BLOCK' if auth_now else 'AUTHORIZE')
+                btn.setIcon(icon('lock', size=14))
+                btn.setObjectName('PanicButton' if auth_now else 'OutlineButton')
+                btn.setMinimumWidth(110)
+                btn.setFixedHeight(28)
+                btn.clicked.connect(lambda checked, d=dev_id, a=not auth_now: self.on_toggle_device_auth(d, a))
             self.usb_table.setCellWidget(row, 6, _wrap_table_btn(btn))
         ports_list = data.get('ports', [])
         wan_count = sum((1 for p in ports_list if p.get('is_wan')))
@@ -315,6 +331,20 @@ class USBGuardPage(QWidget):
             btn_kill.clicked.connect(lambda checked, pt=port_num, pr=proto_val, pd=pid_val: self.on_lockdown_single_port(pt, pr, pd))
             self.net_table.setCellWidget(row, 6, _wrap_table_btn(btn_kill))
 
+    def on_emergency_restore(self):
+        ok, msg = HardwareManager.emergency_restore_usb()
+        self.usb_locked = False
+        self.storage_blocked = False
+        self.btn_usb_lockdown.setText('Lock USB ports')
+        self.btn_usb_lockdown.setStyleSheet('')
+        self.btn_storage_block.setText('Block USB storage')
+        self.btn_storage_block.setStyleSheet('')
+        self.card_usb_state.set_value('Authorized')
+        self.card_usb_state.set_pill('Restored', 'SECURE')
+        self.card_storage_drv.set_value('Active')
+        self.card_storage_drv.set_pill('Unblocked', 'WARN')
+        self.run_full_scan()
+
     def toggle_usb_lockdown(self):
         self.usb_locked = not self.usb_locked
         HardwareManager.set_usb_lockdown(self.usb_locked)
@@ -343,6 +373,7 @@ class USBGuardPage(QWidget):
             self.card_storage_drv.set_pill('Unblocked', 'WARN')
             self.btn_storage_block.setText('Block USB storage')
             self.btn_storage_block.setStyleSheet('')
+        self.run_full_scan()
 
     def on_toggle_device_auth(self, dev_id: str, auth: bool):
         HardwareManager.set_device_authorization(dev_id, auth)
