@@ -226,6 +226,7 @@ echo -e "${CYAN}[*] Creating global launcher wrapper /usr/local/bin/cyberbreak..
 $SUDO_CMD tee /usr/local/bin/cyberbreak > /dev/null << 'EOF'
 #!/usr/bin/env bash
 export PYTHONPATH="/opt/cyberbreak:${PYTHONPATH:-}"
+export QTWEBENGINE_CHROMIUM_FLAGS="${QTWEBENGINE_CHROMIUM_FLAGS:-} --disable-gpu-compositing"
 exec /usr/bin/python3 -m cyberbreak.main "$@"
 EOF
 $SUDO_CMD chmod 755 /usr/local/bin/cyberbreak

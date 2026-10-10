@@ -86,20 +86,31 @@ Kicksecure strictly isolates administrative maintenance tasks (`sysmaint` accoun
 
 ## Core Capabilities
 
-### 1. Browser Privacy & PixelDefence 100/100
+### 1. Browser Privacy & Zero-Tracking Engine (PixelDefence 100/100)
 
-An off-the-record QtWebEngine browser with strict anti-tracking and anti-fingerprinting rules.
+An elite, off-the-record titanium web browser with zero-tracking, anti-fingerprinting, and anti-leak super-shields:
 
 - **100/100 Score on Live PixelDefence Check**: Passes all ten runtime privacy tests:
   - **DNT / GPC Headers**: Automated transmission of `DNT: 1` and `Sec-GPC: 1`.
-  - **Cookie Sandbox**: Rejects persistent cookies and script-based cookie access.
-  - **Canvas Hash Protection**: Disables `toDataURL`, `toBlob`, and `getImageData` pixel extraction so trackers cannot generate canvas hashes.
-  - **WebGL Shield**: Disables WebGL contexts and graphics hardware fingerprinting.
-  - **WebRTC & Worker Gate**: Blocks WebRTC peer connections and background Web Workers to prevent local IP discovery.
-  - **Sensor & Device Access**: Denies camera, microphone, geolocation, battery, and network API queries.
+  - **Cookie Sandbox**: Rejects all first-party and third-party persistent cookies and script-based cookie access.
+  - **Canvas Hash Protection**: Disables `toDataURL`, `toBlob`, and `getImageData` pixel extraction so trackers cannot construct canvas fingerprint hashes.
+  - **WebGL Shield**: Disables WebGL contexts, pixel reading, and graphics hardware profiling.
+  - **WebRTC & Worker Gate**: Blocks WebRTC peer connections and background Web Workers to eliminate local and public IP exposure.
+  - **Sensor & Device Access**: Denies camera, microphone, geolocation, battery, hardware concurrency, and network API queries.
+  - **AudioContext Fingerprinting Defense**: Blocks audio buffer extraction and normalizes sample rates.
   - **Same-Host Isolation**: Restricts requests to the current origin; cross-origin tracking beacons and third-party CDNs are blocked.
-- **Route-Loss Watcher**: Checks policy routes every 15 seconds. If the VPN disconnects or changes paths, browsing is immediately paused.
-- **Hardened Firefox Profile Generator**: Generates an isolated Firefox profile (`~/.config/cyberbreak/browser_profile/`) configured with **49 Mozilla privacy directives**, including Enhanced Tracking Protection, resistFingerprinting, and zero disk caching.
+- **VPN Killswitch Lock vs Direct Zero-Tracking Mode**:
+  - **VPN Lock OFF (Direct Mode)**: Allows instant browsing on any network with full anti-tracking, anti-fingerprinting, and cookie blocking shields active.
+  - **VPN Lock ON (Enforced Mode)**: Blocks web traffic unless an active, verified VPN tunnel route is present.
+- **Smart Address & Private Search Bar**:
+  - Automatically navigates to valid HTTPS domains (`duckduckgo.com`, `eff.org`).
+  - Search queries (e.g. `privacy tools`, `whoami`) seamlessly route to DuckDuckGo Private Search without tracking or cookies.
+- **Full Navigation Controls**: Back, Forward, Reload, Stop, and DuckDuckGo Home buttons.
+- **Quick Privacy Bookmarks**: One-click launch for DuckDuckGo, PixelDefence Leak Test, EFF Cover Your Tracks, Brave Search, and IPleak.net.
+- **Standalone Browser Window**: Dedicated pop-out privacy browser window for full-screen distraction-free browsing.
+- **Multi-Browser Privacy Launcher**:
+  - Generates an isolated Firefox profile (`~/.config/cyberbreak/browser_profile/`) configured with **49 Mozilla privacy directives**, including Enhanced Tracking Protection, resistFingerprinting, and zero disk caching.
+  - Automatically detects and launches alternative privacy browsers (LibreWolf, Tor Browser, Brave, Chromium) in incognito/private modes.
 
 ---
 

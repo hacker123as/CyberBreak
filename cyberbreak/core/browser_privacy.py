@@ -265,11 +265,49 @@ class BrowserPrivacyManager:
             raise ValueError("Only HTTP and HTTPS URLs without embedded credentials are supported.")
         parsed.port
 
+    def find_any_privacy_browser(self):
+        candidates = [
+            shutil.which("librewolf"),
+            shutil.which("tor-browser"),
+            shutil.which("torbrowser-launcher"),
+            shutil.which("brave-browser"),
+            shutil.which("brave"),
+            shutil.which("chromium"),
+            shutil.which("chromium-browser"),
+            shutil.which("google-chrome"),
+            "/usr/bin/librewolf",
+            "/usr/bin/torbrowser-launcher",
+            "/usr/bin/brave-browser",
+            "/usr/bin/chromium",
+            "/usr/bin/chromium-browser",
+        ]
+        for candidate in candidates:
+            if candidate and Path(candidate).is_file() and os.access(candidate, os.X_OK):
+                return str(Path(candidate).absolute())
+        return None
+
+    def launch_alternate_browser(self, browser_path, url):
+        cmd = [browser_path]
+        name = Path(browser_path).name.lower()
+        if "brave" in name or "chrom" in name:
+            cmd.extend(["--incognito", "--disable-sync", "--disable-plugins-discovery", url])
+        elif "librewolf" in name:
+            cmd.extend(["--private-window", url])
+        elif "tor" in name:
+            cmd.append(url)
+        else:
+            cmd.append(url)
+        self._process = subprocess.Popen(cmd, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, shell=False)
+        return True, f"Launched external private browser ({Path(browser_path).name}) with anti-tracking flags."
+
     def launch(self, url=CHECK_URL):
         try:
             self._validate_url(url)
             browser_path = self._find_browser()
             if browser_path is None:
+                alt = self.find_any_privacy_browser()
+                if alt:
+                    return self.launch_alternate_browser(alt, url)
                 return False, "Firefox was not found. Install Firefox or Firefox ESR to use the isolated profile."
             ready, message = self.prepare_profile()
             if not ready:

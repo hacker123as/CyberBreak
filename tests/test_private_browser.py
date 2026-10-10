@@ -21,6 +21,7 @@ from cyberbreak.ui.widgets.private_browser import (
     LOCAL_AUDIT_SCRIPT,
     normalize_web_url,
     request_allowed,
+    format_search_or_url,
 )
 
 
@@ -46,6 +47,13 @@ class UrlPolicyTests(unittest.TestCase):
         self.assertFalse(request_allowed("https://example.com/app.js", "about:blank"))
         self.assertTrue(request_allowed("https://another.test/", "https://example.com/", main_frame=True))
         self.assertFalse(request_allowed("http://another.test/", "https://example.com/", main_frame=True))
+
+    def test_format_search_or_url(self):
+        self.assertEqual(format_search_or_url("duckduckgo.com"), "https://duckduckgo.com/")
+        self.assertEqual(format_search_or_url("https://pixeldefence.com/check/"), "https://pixeldefence.com/check/")
+        self.assertEqual(format_search_or_url("privacy security tools"), "https://duckduckgo.com/?q=privacy+security+tools&kp=-2&kn=1")
+        self.assertEqual(format_search_or_url("whoami"), "https://duckduckgo.com/?q=whoami&kp=-2&kn=1")
+        self.assertIsNone(format_search_or_url(""))
 
 
 @unittest.skipUnless(PYQT6_AVAILABLE and WEBENGINE_AVAILABLE, "QtWebEngine unavailable: " + str(WEBENGINE_ERROR))
