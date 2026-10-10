@@ -222,6 +222,37 @@ class USBArmory:
         return False, f"Lock error: {err or out}"
 
     @classmethod
+    def delete_vault(cls, vault_id: str) -> Tuple[bool, str]:
+        registry = cls.load_registry()
+        v = next((item for item in registry if item.get("vault_id") == vault_id), None)
+        if not v:
+            return False, "Vault ID not found in registry"
+
+        label = v.get("label", vault_id)
+        mapper_name = v.get("mapper")
+        mount_dir = v.get("mount_dir", "")
+        if mount_dir:
+            run_privileged("usb-umount", mount_dir)
+        if mapper_name:
+            run_privileged("usb-luks-close", mapper_name)
+
+        key_file = v.get("key_file", "")
+        if key_file and os.path.exists(key_file):
+            try:
+                sz = os.path.getsize(key_file)
+                with open(key_file, "wb") as f:
+                    f.write(b"\x00" * max(sz, 64))
+                os.remove(key_file)
+                log(f"Keyfile {key_file} securely shredded and deleted.", "OK")
+            except Exception as e:
+                log(f"Error removing keyfile: {e}", "WARN")
+
+        updated = [item for item in registry if item.get("vault_id") != vault_id]
+        cls.save_registry(updated)
+        log(f"Vault '{label}' ({vault_id}) removed from registry and armed keys deleted.", "OK")
+        return True, f"Vault '{label}' successfully deleted and encryption key shredded."
+
+    @classmethod
     def format_partition(cls, device: str, fstype: str, label: str) -> Tuple[bool, str]:
         rc, out, err = run_privileged("usb-format", device, fstype, label)
         if rc == 0:

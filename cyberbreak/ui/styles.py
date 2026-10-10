@@ -100,8 +100,12 @@ QTableWidget, QTableView {
     border: 1px solid rgba(192, 214, 255, 24); border-radius: 12px; gridline-color: rgba(192, 214, 255, 10);
     selection-background-color: rgba(122, 162, 255, 30); selection-color: #e4ecff;
 }
-QTableWidget::item { padding: 8px 10px; border-bottom: 1px solid rgba(186, 207, 246, 8); }
+QTableWidget::item { padding: 6px 10px; border-bottom: 1px solid rgba(186, 207, 246, 8); }
 QTableWidget::item:selected { background: rgba(122, 162, 255, 27); color: #e4ecff; }
+QTableWidget QPushButton, QTableView QPushButton {
+    padding: 3px 10px; min-height: 24px; max-height: 28px; font-size: 11px; font-weight: 600;
+    border-radius: 7px; margin: 0;
+}
 QHeaderView { background: transparent; }
 QHeaderView::section { color: #95a8cb; background: #1d2a40; border: none; border-bottom: 1px solid #33435d; padding: 10px; font-size: 11px; font-weight: 600; }
 QTableCornerButton::section { background: #1d2a40; border: none; }

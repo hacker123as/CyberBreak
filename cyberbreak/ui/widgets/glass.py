@@ -1,7 +1,13 @@
 from PyQt6.QtCore import QEasingCurve, QPropertyAnimation, QRectF, QSize, Qt, pyqtProperty
 from PyQt6.QtGui import QColor, QIcon, QLinearGradient, QPainter, QPainterPath, QPen, QPixmap, QRadialGradient
-from PyQt6.QtSvg import QSvgRenderer
 from PyQt6.QtWidgets import QCheckBox, QFrame, QWidget
+
+try:
+    from PyQt6.QtSvg import QSvgRenderer
+    _HAS_SVG = True
+except ImportError:
+    QSvgRenderer = None
+    _HAS_SVG = False
 
 
 _PATHS = {
@@ -29,12 +35,17 @@ _PATHS = {
 
 
 def icon(name, color="#a4aec8", size=20):
-    path = _PATHS.get(name, _PATHS["shield"])
-    source = f'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">{path}</svg>'
     pixmap = QPixmap(size * 2, size * 2)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
-    QSvgRenderer(source.encode()).render(painter)
+    if _HAS_SVG and QSvgRenderer is not None:
+        path = _PATHS.get(name, _PATHS["shield"])
+        source = f'<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="{color}" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round">{path}</svg>'
+        QSvgRenderer(source.encode()).render(painter)
+    else:
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor(color), 2))
+        painter.drawRoundedRect(4, 4, size * 2 - 8, size * 2 - 8, 3, 3)
     painter.end()
     pixmap.setDevicePixelRatio(2)
     return QIcon(pixmap)

@@ -1,12 +1,27 @@
 import ipaddress
 from urllib.parse import urlsplit, urlunsplit
 
-from PyQt6 import sip
-from PyQt6.QtCore import QByteArray, QUrl, Qt, pyqtSignal
-from PyQt6.QtGui import QColor
-from PyQt6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+try:
+    from PyQt6 import sip
+    from PyQt6.QtCore import QByteArray, QUrl, Qt, pyqtSignal
+    from PyQt6.QtGui import QColor
+    from PyQt6.QtWidgets import QApplication, QLabel, QVBoxLayout, QWidget
+    PYQT6_AVAILABLE = True
+except ImportError:
+    sip = None
+    QByteArray = QUrl = Qt = QColor = QApplication = QLabel = QVBoxLayout = None
+    PYQT6_AVAILABLE = False
+    class QWidget:
+        def __init__(self, *args, **kwargs): pass
+    def pyqtSignal(*args, **kwargs):
+        class _Signal:
+            def connect(self, *a, **k): pass
+            def emit(self, *a, **k): pass
+        return _Signal()
 
 try:
+    if not PYQT6_AVAILABLE:
+        raise ImportError("PyQt6 is not installed")
     from PyQt6.QtWebEngineCore import (
         QWebEnginePage,
         QWebEngineProfile,

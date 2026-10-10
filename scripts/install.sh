@@ -46,7 +46,9 @@ if command -v apt-get >/dev/null 2>&1; then
         python3 \
         python3-pip \
         python3-pyqt6 \
+        python3-pyqt6.qtsvg \
         python3-pyqt6.qtwebengine \
+        libqt6svg6 \
         python3-requests \
         python3-stem \
         macchanger \
@@ -72,11 +74,35 @@ elif command -v pacman >/dev/null 2>&1; then
         python-pip \
         python-pyqt6 \
         python-pyqt6-webengine \
+        qt6-svg \
         python-requests \
         macchanger \
         rfkill \
         iptables \
         networkmanager \
+        ethtool \
+        cryptsetup \
+        dosfstools \
+        e2fsprogs \
+        tar \
+        zstd \
+        btrfs-progs \
+        curl \
+        git \
+        polkit || true
+elif command -v dnf >/dev/null 2>&1; then
+    $SUDO_CMD dnf install -y \
+        python3 \
+        python3-pip \
+        python3-pyqt6 \
+        python3-pyqt6-webengine \
+        qt6-qtsvg \
+        python3-requests \
+        python3-stem \
+        macchanger \
+        rfkill \
+        iptables \
+        NetworkManager \
         ethtool \
         cryptsetup \
         dosfstools \
@@ -117,6 +143,7 @@ $SUDO_CMD chown -R root:root "$APP_DIR"
 $SUDO_CMD find "$APP_DIR" -type d -exec chmod 755 {} +
 $SUDO_CMD find "$APP_DIR" -type f -exec chmod 644 {} +
 $SUDO_CMD chmod 755 "$APP_DIR/cyberbreak/core/helper.py" 2>/dev/null || true
+$SUDO_CMD chmod 755 "$APP_DIR/cyberbreak/main.py" 2>/dev/null || true
 $SUDO_CMD chmod 755 "$APP_DIR/scripts"/*.sh 2>/dev/null || true
 
 if [ -f "${APP_DIR}/requirements.txt" ]; then
@@ -124,6 +151,26 @@ if [ -f "${APP_DIR}/requirements.txt" ]; then
     python3 -m pip install -r "${APP_DIR}/requirements.txt" --break-system-packages 2>/dev/null || \
     python3 -m pip install -r "${APP_DIR}/requirements.txt" 2>/dev/null || true
 fi
+
+echo -e "${CYAN}[*] Verifying critical GUI modules (PyQt6, QtSvg, QtWebEngine)...${NC}"
+if ! python3 -c "import PyQt6; from PyQt6.QtSvg import QSvgRenderer" >/dev/null 2>&1; then
+    echo -e "${YELLOW}[!] PyQt6-QtSvg module missing; installing via pip...${NC}"
+    python3 -m pip install PyQt6-QtSvg --break-system-packages 2>/dev/null || \
+    python3 -m pip install PyQt6-QtSvg 2>/dev/null || true
+fi
+if ! python3 -c "from PyQt6.QtWebEngineWidgets import QWebEngineView" >/dev/null 2>&1; then
+    echo -e "${YELLOW}[!] PyQt6-WebEngine module missing; installing via pip...${NC}"
+    python3 -m pip install PyQt6-WebEngine --break-system-packages 2>/dev/null || \
+    python3 -m pip install PyQt6-WebEngine 2>/dev/null || true
+fi
+if ! python3 -c "import requests, stem" >/dev/null 2>&1; then
+    echo -e "${YELLOW}[!] Core networking modules missing; installing via pip...${NC}"
+    python3 -m pip install requests stem --break-system-packages 2>/dev/null || \
+    python3 -m pip install requests stem 2>/dev/null || true
+fi
+
+echo -e "${CYAN}[*] Validating Python bytecode compilation...${NC}"
+python3 -m compileall -q "$APP_DIR/cyberbreak" 2>/dev/null || true
 
 echo -e "${CYAN}[*] Installing narrowly scoped privileged helper...${NC}"
 HELPER_BIN="${HELPER_DIR}/cyberbreak-helper"
@@ -182,6 +229,11 @@ export PYTHONPATH="/opt/cyberbreak:${PYTHONPATH:-}"
 exec /usr/bin/python3 -m cyberbreak.main "$@"
 EOF
 $SUDO_CMD chmod 755 /usr/local/bin/cyberbreak
+$SUDO_CMD ln -sf /usr/local/bin/cyberbreak /usr/bin/cyberbreak
+
+$SUDO_CMD mkdir -p /var/log/cyberbreak
+$SUDO_CMD chown root:cyberbreak /var/log/cyberbreak 2>/dev/null || true
+$SUDO_CMD chmod 775 /var/log/cyberbreak 2>/dev/null || true
 
 echo -e "${CYAN}[*] Installing vector and high-DPI desktop icons...${NC}"
 $SUDO_CMD mkdir -p /usr/share/icons/hicolor/scalable/apps
@@ -216,11 +268,19 @@ if command -v update-desktop-database >/dev/null 2>&1; then
     $SUDO_CMD update-desktop-database 2>/dev/null || true
 fi
 
-echo -e "${CYAN}[*] Deploying desktop shortcuts across all user accounts...${NC}"
+echo -e "${CYAN}[*] Initializing user config, keystores, and desktop shortcuts across user accounts...${NC}"
 for user_home in /home/*; do
     if [ -d "$user_home" ]; then
         u=$(basename "$user_home")
         if id "$u" >/dev/null 2>&1; then
+            # Initialize user keystore directory for encrypted USB vaults
+            user_cb_cfg="${user_home}/.config/cyberbreak"
+            user_keys="${user_cb_cfg}/vault_keys"
+            $SUDO_CMD mkdir -p "$user_keys"
+            $SUDO_CMD chown -R "$u:$u" "${user_home}/.config" 2>/dev/null || true
+            $SUDO_CMD chmod 700 "$user_keys" 2>/dev/null || true
+
+            # Deploy desktop launcher
             desktop_dir="${user_home}/Desktop"
             $SUDO_CMD mkdir -p "$desktop_dir"
             $SUDO_CMD cp /usr/share/applications/cyberbreak.desktop "${desktop_dir}/cyberbreak.desktop"

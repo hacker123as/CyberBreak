@@ -40,7 +40,7 @@ class USBArmoryPage(QWidget):
         title_box.addWidget(title)
         title_box.addWidget(subtitle)
         header.addLayout(title_box, 1)
-        self.refresh_btn = QPushButton('Refresh storage')
+        self.refresh_btn = QPushButton('Refresh USB list')
         self.refresh_btn.setIcon(icon('refresh'))
         self.refresh_btn.setObjectName('OutlineButton')
         self.refresh_btn.clicked.connect(self.refresh_all)
@@ -95,8 +95,15 @@ class USBArmoryPage(QWidget):
         form_grid.setColumnStretch(1, 1)
         form_grid.setSpacing(16)
         form_grid.addWidget(QLabel('USB drive'), 0, 0)
+        enc_dev_layout = QHBoxLayout()
         self.enc_dev_combo = QComboBox()
-        form_grid.addWidget(self.enc_dev_combo, 0, 1)
+        enc_dev_layout.addWidget(self.enc_dev_combo, 1)
+        self.enc_refresh_usb_btn = QPushButton('Refresh USB list')
+        self.enc_refresh_usb_btn.setIcon(icon('refresh'))
+        self.enc_refresh_usb_btn.setObjectName('OutlineButton')
+        self.enc_refresh_usb_btn.clicked.connect(self.refresh_all)
+        enc_dev_layout.addWidget(self.enc_refresh_usb_btn)
+        form_grid.addLayout(enc_dev_layout, 0, 1)
         form_grid.addWidget(QLabel('Vault name'), 1, 0)
         self.enc_label_input = QLineEdit('CyberVault')
         form_grid.addWidget(self.enc_label_input, 1, 1)
@@ -140,9 +147,20 @@ class USBArmoryPage(QWidget):
         btn_row.addWidget(self.unlock_btn)
         self.lock_btn = QPushButton('Lock vault')
         self.lock_btn.setIcon(icon('lock'))
-        self.lock_btn.setObjectName('PanicButton')
+        self.lock_btn.setObjectName('CyanButton')
         self.lock_btn.clicked.connect(self.on_lock_click)
         btn_row.addWidget(self.lock_btn)
+        self.del_vault_btn = QPushButton('Delete vault')
+        self.del_vault_btn.setIcon(icon('close'))
+        self.del_vault_btn.setObjectName('PanicButton')
+        self.del_vault_btn.clicked.connect(self.on_delete_vault_click)
+        btn_row.addWidget(self.del_vault_btn)
+        btn_row.addStretch()
+        self.refresh_vaults_btn = QPushButton('Refresh list')
+        self.refresh_vaults_btn.setIcon(icon('refresh'))
+        self.refresh_vaults_btn.setObjectName('OutlineButton')
+        self.refresh_vaults_btn.clicked.connect(self.refresh_all)
+        btn_row.addWidget(self.refresh_vaults_btn)
         lay.addLayout(btn_row)
         lay.addStretch()
         return w
@@ -156,8 +174,15 @@ class USBArmoryPage(QWidget):
         form_grid.setColumnStretch(1, 1)
         form_grid.setSpacing(16)
         form_grid.addWidget(QLabel('Target drive'), 0, 0)
+        fmt_dev_layout = QHBoxLayout()
         self.fmt_dev_combo = QComboBox()
-        form_grid.addWidget(self.fmt_dev_combo, 0, 1)
+        fmt_dev_layout.addWidget(self.fmt_dev_combo, 1)
+        self.fmt_refresh_usb_btn = QPushButton('Refresh USB list')
+        self.fmt_refresh_usb_btn.setIcon(icon('refresh'))
+        self.fmt_refresh_usb_btn.setObjectName('OutlineButton')
+        self.fmt_refresh_usb_btn.clicked.connect(self.refresh_all)
+        fmt_dev_layout.addWidget(self.fmt_refresh_usb_btn)
+        form_grid.addLayout(fmt_dev_layout, 0, 1)
         form_grid.addWidget(QLabel('Filesystem'), 1, 0)
         self.fmt_type_combo = QComboBox()
         self.fmt_type_combo.addItems(['ext4', 'btrfs', 'vfat (FAT32)', 'exfat'])
@@ -339,6 +364,36 @@ class USBArmoryPage(QWidget):
         self.log_box.append(f'[DECODER] Locking {v_id}...')
         ok, msg = USBArmory.lock_vault(v_id)
         self.log_box.append(f'[DECODER] {msg}')
+        self.refresh_all()
+
+    def on_delete_vault_click(self):
+        row = self.vault_table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self, 'Selection Required', 'Please select a vault in the table to delete.')
+            return
+        v_id = self.vault_table.item(row, 0).text()
+        label_item = self.vault_table.item(row, 1)
+        label = label_item.text() if label_item else v_id
+        confirm = QMessageBox.question(
+            self,
+            'Confirm Vault Deletion',
+            f"Permanently delete encrypted vault '{label}' (ID: {v_id})?\n\n"
+            "This will:\n"
+            "1. Safely unmount filesystem and close LUKS2 crypt mapper\n"
+            "2. Securely shred encryption keyfile from app keystore\n"
+            "3. Deregister the vault from CyberBreak\n\n"
+            "WARNING: The drive will become permanently unreadable without this key.",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if confirm != QMessageBox.StandardButton.Yes:
+            return
+        self.log_box.append(f'[DECODER] Deleting vault {v_id} ({label})...')
+        ok, msg = USBArmory.delete_vault(v_id)
+        self.log_box.append(f'[DECODER] {msg}')
+        if ok:
+            QMessageBox.information(self, 'Vault Deleted', msg)
+        else:
+            QMessageBox.critical(self, 'Deletion Failed', msg)
         self.refresh_all()
 
     def on_format_click(self):

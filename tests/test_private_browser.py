@@ -6,8 +6,13 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 os.environ.setdefault("QTWEBENGINE_CHROMIUM_FLAGS", "--disable-gpu")
 
-from PyQt6.QtCore import QCoreApplication, QEventLoop, QTimer, Qt
-from PyQt6.QtWidgets import QApplication
+try:
+    from PyQt6.QtCore import QCoreApplication, QEventLoop, QTimer, Qt
+    from PyQt6.QtWidgets import QApplication
+    PYQT6_AVAILABLE = True
+except ImportError:
+    QCoreApplication = QEventLoop = QTimer = Qt = QApplication = None
+    PYQT6_AVAILABLE = False
 
 from cyberbreak.ui.widgets.private_browser import (
     BrowserGuard,
@@ -43,7 +48,7 @@ class UrlPolicyTests(unittest.TestCase):
         self.assertFalse(request_allowed("http://another.test/", "https://example.com/", main_frame=True))
 
 
-@unittest.skipUnless(WEBENGINE_AVAILABLE, "QtWebEngine unavailable: " + WEBENGINE_ERROR)
+@unittest.skipUnless(PYQT6_AVAILABLE and WEBENGINE_AVAILABLE, "QtWebEngine unavailable: " + str(WEBENGINE_ERROR))
 class BrowserProtectionTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

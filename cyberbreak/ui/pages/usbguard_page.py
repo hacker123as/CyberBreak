@@ -14,6 +14,14 @@ class ScanWorker(QThread):
         ports = PortAuditor.get_open_listening_ports()
         self.finished_data.emit({'usb': usb_devs, 'ports': ports})
 
+def _wrap_table_btn(btn: QPushButton) -> QWidget:
+    w = QWidget()
+    lay = QHBoxLayout(w)
+    lay.setContentsMargins(6, 4, 6, 4)
+    lay.setAlignment(Qt.AlignmentFlag.AlignCenter)
+    lay.addWidget(btn)
+    return w
+
 class USBGuardPage(QWidget):
 
     def __init__(self, parent=None):
@@ -96,17 +104,19 @@ class USBGuardPage(QWidget):
         self.usb_table.setShowGrid(False)
         self.usb_table.setAlternatingRowColors(True)
         self.usb_table.verticalHeader().setVisible(False)
-        self.usb_table.verticalHeader().setDefaultSectionSize(44)
+        self.usb_table.verticalHeader().setDefaultSectionSize(48)
         self.usb_table.setMinimumHeight(240)
         self.usb_table.setColumnCount(7)
         self.usb_table.setHorizontalHeaderLabels(['Port / bus', 'Device name', 'Vendor:product', 'Type', 'Speed', 'Status', 'Action'])
+        self.usb_table.horizontalHeader().setMinimumSectionSize(65)
         self.usb_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.usb_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
         self.usb_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.usb_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.usb_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.ResizeToContents)
         self.usb_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        self.usb_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.usb_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)
+        self.usb_table.setColumnWidth(6, 145)
         tab_layout.addWidget(self.usb_table)
 
     def setup_net_tab(self):
@@ -144,17 +154,19 @@ class USBGuardPage(QWidget):
         self.net_table.setShowGrid(False)
         self.net_table.setAlternatingRowColors(True)
         self.net_table.verticalHeader().setVisible(False)
-        self.net_table.verticalHeader().setDefaultSectionSize(44)
+        self.net_table.verticalHeader().setDefaultSectionSize(48)
         self.net_table.setMinimumHeight(240)
         self.net_table.setColumnCount(7)
         self.net_table.setHorizontalHeaderLabels(['Proto', 'Port', 'Bind address', 'PID', 'Service / process', 'Exposure risk', 'Action'])
+        self.net_table.horizontalHeader().setMinimumSectionSize(65)
         self.net_table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.ResizeToContents)
         self.net_table.horizontalHeader().setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
         self.net_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.ResizeToContents)
         self.net_table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.ResizeToContents)
         self.net_table.horizontalHeader().setSectionResizeMode(4, QHeaderView.ResizeMode.Stretch)
         self.net_table.horizontalHeader().setSectionResizeMode(5, QHeaderView.ResizeMode.ResizeToContents)
-        self.net_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.ResizeToContents)
+        self.net_table.horizontalHeader().setSectionResizeMode(6, QHeaderView.ResizeMode.Interactive)
+        self.net_table.setColumnWidth(6, 150)
         tab_layout.addWidget(self.net_table)
 
     def setup_sensor_tab(self):
@@ -261,10 +273,12 @@ class USBGuardPage(QWidget):
             dev_id = dev['dev_id']
             auth_now = dev['authorized']
             btn = QPushButton('BLOCK' if auth_now else 'AUTHORIZE')
-            btn.setIcon(icon('lock'))
+            btn.setIcon(icon('lock', size=14))
             btn.setObjectName('PanicButton' if auth_now else 'OutlineButton')
+            btn.setMinimumWidth(110)
+            btn.setFixedHeight(28)
             btn.clicked.connect(lambda checked, d=dev_id, a=not auth_now: self.on_toggle_device_auth(d, a))
-            self.usb_table.setCellWidget(row, 6, btn)
+            self.usb_table.setCellWidget(row, 6, _wrap_table_btn(btn))
         ports_list = data.get('ports', [])
         wan_count = sum((1 for p in ports_list if p.get('is_wan')))
         self.card_net_total.set_value(f'{len(ports_list)} Open Sockets')
@@ -294,10 +308,12 @@ class USBGuardPage(QWidget):
             pid_val = p['pid']
             btn_kill = QPushButton('Block & stop')
             btn_kill.setToolTip(f"Block {proto_val.upper()} port {port_num} and terminate its owner process: {p['process']} (PID {pid_val or 'unknown'}).")
-            btn_kill.setIcon(icon('lock'))
+            btn_kill.setIcon(icon('lock', size=14))
             btn_kill.setObjectName('PanicButton')
+            btn_kill.setMinimumWidth(115)
+            btn_kill.setFixedHeight(28)
             btn_kill.clicked.connect(lambda checked, pt=port_num, pr=proto_val, pd=pid_val: self.on_lockdown_single_port(pt, pr, pd))
-            self.net_table.setCellWidget(row, 6, btn_kill)
+            self.net_table.setCellWidget(row, 6, _wrap_table_btn(btn_kill))
 
     def toggle_usb_lockdown(self):
         self.usb_locked = not self.usb_locked
